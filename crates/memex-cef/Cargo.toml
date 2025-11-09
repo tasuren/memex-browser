@@ -4,3 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+cef.workspace = true
+async-channel = "2.5.0"
+async-io = "2.6.0"
+futures = { version = "0.3.31", default-features = false }
