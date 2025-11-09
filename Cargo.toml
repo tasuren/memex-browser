@@ -1,3 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/memex-ui"]
+members = ["crates/memex-app", "crates/memex-cef", "crates/memex-cef-helper","crates/memex-ui"]
+
+[workspace.dependencies]
+cef = "141.6.0"
