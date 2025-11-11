@@ -4,7 +4,10 @@
 /target
 .cargo
 
+# Python
+__pycache__
+.venv
+
 # Project specific
 .dev
 !.dev/app_data/.gitkeep
-.venv
