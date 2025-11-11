@@ -1,5 +1,6 @@
 [package]
 name = "memex-app"
+publish = false
 edition = "2024"
 
 [dependencies]
