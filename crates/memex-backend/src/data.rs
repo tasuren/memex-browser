@@ -137,10 +137,26 @@ mod models {
         NativeHomePage,
     }
 
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    #[serde(tag = "type")]
+    pub enum WorkspaceIconData {
+        Emoji(String),
+        Text(String),
+        Image(PathBuf),
+        Default,
+    }
+
+    impl Default for WorkspaceIconData {
+        fn default() -> Self {
+            Self::Default
+        }
+    }
+
     #[derive(Debug, Default, Serialize, Deserialize)]
     pub struct WorkspaceData {
-        pub name: String,
         pub id: Uuid,
+        pub name: String,
+        pub icon: WorkspaceIconData,
         pub tabs: HashMap<Uuid, TabData>,
         pub tab_order: Vec<Uuid>,
         pub selected: Option<Uuid>,
@@ -149,8 +165,9 @@ mod models {
     impl WorkspaceData {
         pub fn new(name: String) -> Self {
             Self {
-                name,
                 id: Uuid::new_v4(),
+                name,
+                icon: Default::default(),
                 tabs: Default::default(),
                 tab_order: Default::default(),
                 selected: Default::default(),
@@ -161,8 +178,9 @@ mod models {
     impl From<&Workspace> for WorkspaceData {
         fn from(value: &Workspace) -> Self {
             WorkspaceData {
-                name: value.name.clone(),
                 id: value.id,
+                name: value.name.clone(),
+                icon: value.icon.clone(),
                 tabs: value
                     .tabs
                     .iter()

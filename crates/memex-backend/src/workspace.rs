@@ -8,8 +8,8 @@ use uuid::Uuid;
 use crate::{
     SystemContext,
     data::{
-        WorkspaceData, delete_workspace, get_workspaces, load_workspace, prepare_workspace,
-        save_workspace,
+        WorkspaceData, WorkspaceIconData, delete_workspace, get_workspaces, load_workspace,
+        prepare_workspace, save_workspace,
     },
     os::file_system::FileSystemItem,
     tab::Tab,
@@ -21,6 +21,7 @@ pub struct Workspace {
 
     pub(crate) id: Uuid,
     pub(crate) name: String,
+    pub(crate) icon: WorkspaceIconData,
     pub(crate) tabs: HashMap<Uuid, Tab>,
     pub(crate) tab_order: Vec<Uuid>,
     pub(crate) selected: Option<Uuid>,
@@ -29,7 +30,11 @@ pub struct Workspace {
 }
 
 impl Workspace {
-    pub async fn create(cx: SystemContext, name: String) -> anyhow::Result<Self> {
+    pub async fn create(
+        cx: SystemContext,
+        name: String,
+        icon: WorkspaceIconData,
+    ) -> anyhow::Result<Self> {
         let data = prepare_workspace(cx.path(), name.clone())
             .await
             .context("Failed to prepare the workspace directory.")?;
@@ -39,6 +44,7 @@ impl Workspace {
             _profile: Profile::new().context("Failed to prepare profile.")?,
             id: data.id,
             name: data.name,
+            icon,
             tabs: HashMap::new(),
             tab_order: Vec::new(),
             selected: None,
@@ -71,6 +77,7 @@ impl Workspace {
             _profile: profile,
             id,
             name: data.name,
+            icon: data.icon,
             tabs,
             tab_order: data.tab_order,
             selected: None,
