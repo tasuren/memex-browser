@@ -3,7 +3,7 @@ import shutil
 from argparse import ArgumentParser
 from os import getenv
 from pathlib import PurePath
-from typing import Final
+from typing import Final, cast
 
 import tomllib
 from _lib import setup_logger
@@ -27,7 +27,7 @@ if cef_path_raw is None:
 
             if isinstance(maybe_cef_path, dict):
                 if "value" in maybe_cef_path:
-                    cef_path_raw = maybe_cef_path["value"]
+                    cef_path_raw = cast(str, maybe_cef_path["value"])
             else:
                 cef_path_raw = maybe_cef_path
 
