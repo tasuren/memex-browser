@@ -42,13 +42,13 @@ TARGET_DEBUG: Final = PurePath("target/debug")
 BINARY_NAME: Final = "memex-app"
 HELPER_BINARY_NAME: Final = "memex-cef-helper"
 product_name: Final = "Memex Browser" if is_release else "Memex Browser (D)"
-bundle_id: Final = "jp.tasuren.memex" if is_release else "jp.tasuren.memex-d"
+bundle_id: Final = "jp.tasuren.memex-poc" if is_release else "jp.tasuren.memex-poc-dev"
 CEF_FRAMEWORK_NAME: Final = "Chromium Embedded Framework.framework"
 
 logger.info("バンドルの作成: %s", product_name)
 
 logger.debug("`Info.plist`テンプレートの読み込み")
-with open("assets/helper-Info.plist", "r") as f:
+with open("assets/helper_Info.plist", "r") as f:
     helper_info_plist_template = f.read()
 
 logger.debug("ヘルパーの`Info.plist`テンプレートの読み込み")
