@@ -12,6 +12,7 @@ gpui-component.workspace = true
 rust-embed.workspace = true
 uuid = { workspace = true, features = ["v4"] }
 log.workspace = true
+env_logger.workspace = true
 futures-lite.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
