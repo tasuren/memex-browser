@@ -7,3 +7,4 @@
 # Project specific
 .dev
 !.dev/app_data/.gitkeep
+.venv
