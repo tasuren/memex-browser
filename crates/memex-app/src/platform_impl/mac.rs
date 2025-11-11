@@ -7,13 +7,13 @@ pub mod application {
     use objc2::{runtime::*, *};
     use objc2_app_kit::NSApplication;
 
-    const GPUI_APP_NAME: &CStr = c"GPUIApplication";
+    const GPUI_APP_NAME: &str = "GPUIApplication";
 
     pub fn impl_cef_protocol_for_gpui_app() {
         let mtm =
             MainThreadMarker::new().expect("This function is must be called from main thread.");
         let app = NSApplication::sharedApplication(mtm).class();
-        assert_eq!(app.name(), GPUI_APP_NAME);
+        assert!(app.name().to_str().unwrap().ends_with(GPUI_APP_NAME));
 
         unsafe {
             let _ = objc2::ffi::class_addMethod(
