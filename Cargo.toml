@@ -9,6 +9,7 @@ cef = "141.6.1"
 objc2 = "0.6.3"
 objc2-app-kit = { version = "0.3.2", default-features = false }
 log = "0.4.28"
+env_logger = "0.11.8"
 raw-window-handle = "0.6.2"
 anyhow = "1.0"
 uuid = "1.18.1"
