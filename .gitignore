@@ -2,4 +2,8 @@
 
 # Cargo
 /target
+.cargo
 
+# Project specific
+.dev
+!.dev/app_data/.gitkeep

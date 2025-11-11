@@ -6,11 +6,11 @@ pub struct PumpDelayMs(pub u64);
 pub type PumpTx = async_channel::Sender<PumpDelayMs>;
 pub type PumpRx = async_channel::Receiver<PumpDelayMs>;
 
-pub struct EventLoop {
+pub struct EventLoopHandle {
     pub pump_rx: PumpRx,
 }
 
-impl EventLoop {
+impl EventLoopHandle {
     pub(crate) fn new() -> (Self, PumpTx) {
         let (pump_tx, pump_rx) = async_channel::unbounded();
 

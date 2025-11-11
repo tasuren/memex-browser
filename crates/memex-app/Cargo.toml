@@ -1,11 +1,18 @@
 [package]
 name = "memex-app"
-version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-anyhow = "1.0.100"
-gpui = "0.2.2"
-gpui-component = "0.3.1"
-rust-embed = "8.8.0"
-uuid = { version = "1.18.1", features = ["v4"] }
+memex-backend.workspace = true
+memex-cef.workspace = true
+anyhow.workspace = true
+gpui.workspace = true
+gpui-component.workspace = true
+rust-embed.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+log.workspace = true
+futures-lite.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2.workspace = true
+objc2-app-kit = { workspace = true, features = ["NSApplication", "NSResponder"] }

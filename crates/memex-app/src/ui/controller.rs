@@ -7,9 +7,9 @@ use gpui_component::{
     v_flex,
 };
 
-use crate::{
+use crate::ui::{
     tab_bar::TabBar,
-    ui_consts::{TOP_TAB_BAR_HEIGHT, URL_BAR_HEIGHT},
+    consts::{TOP_TAB_BAR_HEIGHT, URL_BAR_HEIGHT},
 };
 
 pub struct Controller {

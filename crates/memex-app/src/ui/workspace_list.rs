@@ -10,7 +10,7 @@ pub struct CurrentWorkspace {
 
 impl Global for CurrentWorkspace {}
 
-pub fn init(cx: &mut App) {
+pub fn init_workspace_list(cx: &mut App) {
     cx.set_global(CurrentWorkspace { data: None });
 }
 

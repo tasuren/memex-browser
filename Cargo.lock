@@ -172,7 +172,7 @@ version = "0.38.0+1.3.281"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bb44936d800fea8f016d7f2311c6a4f97aebd5dc86f09906139ec848cf3a46f"
 dependencies = [
- "libloading",
+ "libloading 0.8.9",
 ]
 
 [[package]]
@@ -586,7 +586,7 @@ dependencies = [
  "hidden-trait",
  "js-sys",
  "khronos-egl",
- "libloading",
+ "libloading 0.8.9",
  "log",
  "mint",
  "naga",
@@ -809,21 +809,21 @@ dependencies = [
 
 [[package]]
 name = "cef"
-version = "141.6.0+141.0.11"
+version = "141.6.1+141.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc711443f6b485c86d2aa7fa504e3847d690ab790bc98905758567d2247e1aa6"
+checksum = "44bf7f5c37570d3a0273b37fc0c34265b0e99dcdcb4311c9b0c072225f759bab"
 dependencies = [
  "cef-dll-sys",
- "libloading",
+ "libloading 0.9.0",
  "objc2",
  "windows-sys 0.61.2",
 ]
 
 [[package]]
 name = "cef-dll-sys"
-version = "141.6.0+141.0.11"
+version = "141.6.1+141.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c95e419bbb8b2190df8b6eb3934ecc4137533803fcc5ae2b076e591ee789071"
+checksum = "0498c484096f1502e522601f9bceb56cb7749caaba55951135c203be067e5127"
 dependencies = [
  "anyhow",
  "cmake",
@@ -903,7 +903,7 @@ checksum = "0b023947811758c97c59bf9d1c188fd619ad4718dcaa767947df1cadb14f39f4"
 dependencies = [
  "glob",
  "libc",
- "libloading",
+ "libloading 0.8.9",
 ]
 
 [[package]]
@@ -1450,13 +1450,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "dirs"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
+dependencies = [
+ "dirs-sys 0.5.0",
+]
+
+[[package]]
 name = "dirs-sys"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b1d1d91c932ef41c0f2663aa8b0ca0342d444d842c06914aa0a7e352d0bada6"
 dependencies = [
  "libc",
- "redox_users",
+ "redox_users 0.4.6",
  "winapi",
 ]
 
@@ -1468,8 +1477,20 @@ checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
 dependencies = [
  "libc",
  "option-ext",
- "redox_users",
+ "redox_users 0.4.6",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab"
+dependencies = [
+ "libc",
+ "option-ext",
+ "redox_users 0.5.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1505,7 +1526,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330c60081dcc4c72131f8eb70510f1ac07223e5d4163db481a04a0befcffa412"
 dependencies = [
- "libloading",
+ "libloading 0.8.9",
 ]
 
 [[package]]
@@ -3208,7 +3229,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6aae1df220ece3c0ada96b8153459b67eebe9ae9212258bb0134ae60416fdf76"
 dependencies = [
  "libc",
- "libloading",
+ "libloading 0.8.9",
 ]
 
 [[package]]
@@ -3308,6 +3329,16 @@ name = "libloading"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7c4b02199fee7c5d21a5ae7d8cfa79a6ef5bb2fc834d6e9058e89c825efdc55"
+dependencies = [
+ "cfg-if",
+ "windows-link 0.2.1",
+]
+
+[[package]]
+name = "libloading"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "754ca22de805bb5744484a5b151a9e1a8e837d5dc232c2d7d8c2e3492edc8b60"
 dependencies = [
  "cfg-if",
  "windows-link 0.2.1",
@@ -3531,22 +3562,56 @@ checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 
 [[package]]
 name = "memex-app"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "anyhow",
+ "futures-lite 2.6.1",
  "gpui",
  "gpui-component",
+ "log",
+ "memex-backend",
+ "memex-cef",
+ "objc2",
+ "objc2-app-kit",
  "rust-embed",
  "uuid",
 ]
 
 [[package]]
+name = "memex-backend"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-fs",
+ "async-io",
+ "dirs 6.0.0",
+ "futures",
+ "futures-lite 2.6.1",
+ "gpui",
+ "log",
+ "memex-cef",
+ "raw-window-handle",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
 name = "memex-cef"
-version = "0.1.0"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-channel 2.5.0",
+ "async-io",
+ "cef",
+ "futures",
+ "log",
+ "raw-window-handle",
+]
 
 [[package]]
 name = "memex-cef-helper"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "cef",
 ]
@@ -4763,6 +4828,17 @@ dependencies = [
  "getrandom 0.2.16",
  "libredox",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "redox_users"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
+dependencies = [
+ "getrandom 0.2.16",
+ "libredox",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
