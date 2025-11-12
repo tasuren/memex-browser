@@ -1,70 +1,21 @@
-use std::collections::HashMap;
-
-use gpui::{App, Global, SharedString, Window, div, prelude::*};
+use gpui::{App, Window, div, prelude::*};
 use gpui_component::{ActiveTheme, Icon, Sizable, v_flex};
+use memex_backend::{SystemContext, data::WorkspaceIconData};
 use uuid::Uuid;
 
-pub struct CurrentWorkspace {
-    pub data: Option<WorkspaceData>,
-}
-
-impl Global for CurrentWorkspace {}
-
-pub fn init_workspace_list(cx: &mut App) {
-    cx.set_global(CurrentWorkspace { data: None });
-}
-
-pub struct WorkspaceData {
-    id: Uuid,
-    icon: SharedString,
-}
-
-pub struct WorkspaceList {
-    workspaces: HashMap<Uuid, WorkspaceData>,
-    order: Vec<Uuid>,
-    selected: Option<Uuid>,
-}
+pub struct WorkspaceList;
 
 impl WorkspaceList {
     pub fn new() -> Self {
-        let mut workspaces = HashMap::new();
-        let mut order = Vec::new();
-
-        let home_id = Uuid::new_v4();
-        workspaces.insert(
-            home_id,
-            WorkspaceData {
-                id: home_id,
-                icon: "🏠".into(),
-            },
-        );
-        order.push(home_id);
-
-        let mut push = |f: fn(Uuid) -> WorkspaceData| {
-            let id = Uuid::new_v4();
-            order.push(id);
-            workspaces.insert(id, f(id));
-        };
-
-        push(|id| WorkspaceData {
-            id,
-            icon: "🔬".into(),
-        });
-        push(|id| WorkspaceData {
-            id,
-            icon: "😳".into(),
-        });
-
-        Self {
-            workspaces,
-            order,
-            selected: None,
-        }
+        Self
     }
 }
 
 impl Render for WorkspaceList {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
+        let system = cx.global::<SystemContext>().clone();
+        let manager = system.workspace_manager().lock().unwrap();
+
         v_flex()
             .id("workspace-list")
             .gap_2()
@@ -79,7 +30,7 @@ impl Render for WorkspaceList {
                     .rounded_2xl()
                     .text_color(cx.theme().accent_foreground)
                     .when_else(
-                        self.selected.is_some(),
+                        manager.selected() == manager.home(),
                         |this| this.bg(cx.theme().accent),
                         |this| this.bg(cx.theme().accent.alpha(0.4)),
                     )
@@ -87,22 +38,49 @@ impl Render for WorkspaceList {
             )
             .child(div().w_3_4().border_1().border_color(cx.theme().border))
             // User workspaces
-            .children(self.order.iter().enumerate().map(|(ix, id)| {
-                let workspace = self.workspaces.get(id).unwrap();
+            .children(manager.order().iter().enumerate().map(|(ix, id)| {
+                let list = manager.list_metadata();
+                let metadata = list.get(&id).unwrap();
 
                 v_flex()
                     .id(ix)
                     .size_12()
-                    .when(
-                        self.selected
-                            .is_some_and(|selected| workspace.id == selected),
-                        |this| this.bg(cx.theme().primary.alpha(0.2)),
-                    )
+                    .when(manager.selected() == metadata.id(), |this| {
+                        this.bg(cx.theme().primary.alpha(0.2))
+                    })
                     .rounded_xl()
                     .justify_center()
                     .text_center()
                     .text_3xl()
-                    .child(workspace.icon.clone())
+                    .child(WorkspaceIcon(*id))
             }))
+    }
+}
+
+#[derive(IntoElement)]
+struct WorkspaceIcon(Uuid);
+
+impl RenderOnce for WorkspaceIcon {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let system = cx.global::<SystemContext>();
+        let manager = system.workspace_manager().lock().unwrap();
+        let metadata = manager.list_metadata().get(&self.0).unwrap();
+
+        match metadata.icon() {
+            WorkspaceIconData::Default => v_flex()
+                .justify_center()
+                .items_center()
+                .child(Icon::empty().path("icons/album.svg")),
+            WorkspaceIconData::Emoji(emoji) => v_flex()
+                .justify_center()
+                .items_center()
+                .text_xl()
+                .child(emoji.to_owned()),
+            WorkspaceIconData::Text(text) => v_flex()
+                .justify_center()
+                .items_center()
+                .child(text.to_owned()),
+            _ => v_flex().child("😳"),
+        }
     }
 }

@@ -1,3 +1,4 @@
+use futures_lite::future;
 use gpui::{App, Application};
 use memex_backend::{SystemContext, data::AppPath};
 
@@ -8,9 +9,15 @@ pub fn boot() {
 
     let app = Application::new();
 
-    let path = futures_lite::future::block_on(AppPath::new(crate::APP_IDENTIFIER.to_owned()))
-        .expect("システムのセーブデータ格納場所の構築に失敗しました。");
-    let system = SystemContext::new(app.background_executor(), app.foreground_executor(), path);
+    let system = future::block_on(async {
+        let path = AppPath::new(crate::APP_IDENTIFIER.to_owned())
+            .await
+            .expect("システムのセーブデータ格納場所の構築に失敗しました。");
+
+        SystemContext::new(app.background_executor(), app.foreground_executor(), path)
+            .await
+            .expect("システムの初期化に失敗しました。")
+    });
 
     app.with_assets(crate::foundation::Assets)
         .run(move |cx: &mut App| {
@@ -53,7 +60,4 @@ pub fn init_ui(cx: &mut App) {
     // UIに使う周辺の初期化。
     gpui_component::init(cx);
     crate::foundation::init_theme(cx);
-
-    // アプリが直接使うUIの初期化。
-    crate::ui::init_workspace_list(cx);
 }

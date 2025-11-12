@@ -4,10 +4,9 @@ use gpui_component::{
     resizable::{ResizableState, h_resizable, resizable_panel},
     v_flex,
 };
+use memex_backend::SystemContext;
 
-use crate::ui::{
-    Controller, CurrentWorkspace, Exproler, TOP_TAB_BAR_HEIGHT, WORKSPACE_LIST_WIDTH, WorkspaceList,
-};
+use crate::ui::{Controller, Exproler, TOP_TAB_BAR_HEIGHT, WORKSPACE_LIST_WIDTH, WorkspaceList};
 
 pub struct MemexBrowser {
     workspace_list: Entity<WorkspaceList>,
@@ -31,6 +30,9 @@ impl MemexBrowser {
 
 impl Render for MemexBrowser {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let system = cx.global::<SystemContext>();
+        let workspace_manager = system.workspace_manager().lock().unwrap();
+
         h_flex()
             .id("window-body")
             .size_full()
@@ -60,17 +62,20 @@ impl Render for MemexBrowser {
                     )
                     .child(
                         h_resizable("workspace", self.workspace_box_state.clone())
-                            .when(cx.global::<CurrentWorkspace>().data.is_some(), |this| {
-                                this.child(
-                                    resizable_panel().size(px(200.)).child(
-                                        div()
-                                            .size_full()
-                                            .border_r_1()
-                                            .border_color(cx.theme().border)
-                                            .child(self.exproler.clone()),
-                                    ),
-                                )
-                            })
+                            .when(
+                                workspace_manager.selected() != workspace_manager.home(),
+                                |this| {
+                                    this.child(
+                                        resizable_panel().size(px(200.)).child(
+                                            div()
+                                                .size_full()
+                                                .border_r_1()
+                                                .border_color(cx.theme().border)
+                                                .child(self.exproler.clone()),
+                                        ),
+                                    )
+                                },
+                            )
                             .child(h_flex().size_full().p_4().into_any_element()),
                     ),
             )
