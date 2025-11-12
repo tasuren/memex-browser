@@ -1,81 +1,24 @@
-use std::collections::HashMap;
-
-use gpui::{Entity, MouseButton, SharedString, actions, prelude::*, px};
+use gpui::{AsyncApp, MouseButton, actions, prelude::*, px};
 use gpui_component::*;
-use uuid::Uuid;
+use memex_backend::SystemContext;
+use memex_cef::UIThreadMarker;
+use raw_window_handle::HasWindowHandle;
 
 actions!(tab_actions, [NextTab, PreviousTab]);
 
-pub struct Tab {
-    _id: Uuid,
-    title: SharedString,
-}
-
-pub struct TabBarState {
-    tabs: HashMap<Uuid, Tab>,
-    tab_order: Vec<Uuid>,
-    tab_history: Vec<Uuid>,
-    selected: Uuid,
-}
-
-impl TabBarState {
-    fn select(&mut self, id: Uuid) {
-        self.selected = id;
-
-        if let Some(previous_pos) = self
-            .tab_history
-            .iter()
-            .position(|candidate| *candidate == id)
-        {
-            self.tab_history.remove(previous_pos);
-        }
-
-        self.tab_history.insert(0, id)
-    }
-}
-
-pub struct TabBar {
-    state: Entity<TabBarState>,
-}
+pub struct TabBar {}
 
 impl TabBar {
-    pub fn new(cx: &mut Context<Self>) -> Self {
-        let mut tabs = HashMap::new();
-        let mut tab_order = Vec::new();
-        let mut tab_history = Vec::new();
-
-        let id = Uuid::new_v4();
-        let tab = Tab {
-            _id: id,
-            title: "テストタブ1".into(),
-        };
-        tab_order.push(id);
-        tabs.insert(id, tab);
-        tab_history.push(id);
-        let selected = id;
-
-        let id = Uuid::new_v4();
-        let tab = Tab {
-            _id: id,
-            title: "テストタブ2".into(),
-        };
-        tab_order.push(id);
-        tabs.insert(id, tab);
-
-        Self {
-            state: cx.new(|_| TabBarState {
-                tabs,
-                tab_order,
-                tab_history,
-                selected,
-            }),
-        }
+    pub fn new(_cx: &mut Context<Self>) -> Self {
+        Self {}
     }
 }
 
 impl Render for TabBar {
     fn render(&mut self, _window: &mut gpui::Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let state = self.state.read(cx);
+        let system = cx.global::<SystemContext>();
+        let manager = system.workspace_manager().lock().unwrap();
+        let workspace = manager.get(manager.selected()).unwrap();
 
         h_flex()
             .id("tab-bar")
@@ -86,14 +29,16 @@ impl Render for TabBar {
             .pt(px(6.))
             .px_2()
             .children(
-                self.state
-                    .read(cx)
-                    .tab_order
+                workspace
+                    .tab_order()
                     .iter()
                     .cloned()
                     .enumerate()
                     .map(|(ix, id)| {
-                        let tab = state.tabs.get(&id).unwrap();
+                        let system = cx.global::<SystemContext>();
+                        let manager = system.workspace_manager().lock().unwrap();
+                        let workspace = manager.get(manager.selected()).unwrap();
+                        let tab = workspace.get_tab(id).unwrap();
 
                         h_flex()
                             .id(ix)
@@ -104,7 +49,7 @@ impl Render for TabBar {
                             .rounded_t_xl()
                             .px_4()
                             .when_else(
-                                self.state.read(cx).selected == id,
+                                workspace.selected_tab() == Some(id),
                                 |this| this.bg(cx.theme().background),
                                 |this| {
                                     this.bg(cx.theme().title_bar).hover(|style| {
@@ -115,24 +60,41 @@ impl Render for TabBar {
                                     })
                                 },
                             )
-                            .child(
-                                h_flex()
-                                    .justify_start()
-                                    .items_center()
-                                    .child(tab.title.clone()),
-                            )
+                            .child(h_flex().justify_start().items_center().child(tab.title()))
                             .child(Icon::empty().path("icons/x.svg"))
-                            .on_mouse_up(MouseButton::Left, {
-                                let state = self.state.clone();
+                            .on_mouse_up(MouseButton::Left, move |_event, _window, cx| {
+                                let system = cx.global::<SystemContext>();
+                                let mut manager = system.workspace_manager().lock().unwrap();
+                                let workspace_id = manager.selected();
+                                let workspace = manager.get_mut(workspace_id).unwrap();
+                                let utm = UIThreadMarker::new().unwrap();
 
-                                move |_event, _window, cx| {
-                                    state.update(cx, |state, _| {
-                                        if state.selected != id {
-                                            state.select(id)
-                                        }
-                                    })
-                                }
+                                workspace.select(utm, id).unwrap();
                             })
+                    }),
+            )
+            .child(
+                v_flex()
+                    .justify_center()
+                    .items_center()
+                    .child(Icon::new(IconName::Plus).size_10())
+                    .on_mouse_up(MouseButton::Left, |_event, window, cx| {
+                        println!("aa");
+                        let system = cx.global::<SystemContext>();
+                        let manager = system.workspace_manager().clone();
+                        let window_handle = window.window_handle().unwrap().as_raw();
+
+                        cx.spawn(move |_cx: &mut AsyncApp| async move {
+                            let mut manager = manager.lock().unwrap();
+                            let workspace_id = manager.selected();
+                            let workspace = manager.get_mut(workspace_id).unwrap();
+
+                            workspace
+                                .create_tab(window_handle)
+                                .await
+                                .expect("新しいタブを開くのに失敗しました。");
+                        })
+                        .detach();
                     }),
             )
     }

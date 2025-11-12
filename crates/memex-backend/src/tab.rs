@@ -1,6 +1,6 @@
 use std::{ops::Deref, path::PathBuf};
 
-use memex_cef::{Browser, Profile};
+use memex_cef::{Browser, Profile, UIThreadMarker};
 use raw_window_handle::RawWindowHandle;
 use uuid::Uuid;
 
@@ -37,6 +37,17 @@ impl Tab {
     pub fn is_native_homepage(&self) -> bool {
         // TODO: implement retrieval whether is webpage native.
         false
+    }
+
+    pub fn title(&self) -> String {
+        self.browser.title().unwrap()
+    }
+
+    pub(crate) fn set_hidden(&self, utm: UIThreadMarker, hidden: bool) {
+        #[cfg(target_os = "macos")]
+        crate::platform_impl::macos::view::set_hidden(utm, &self.browser, hidden);
+        #[cfg(not(target_os = "macos"))]
+        unimplemented!()
     }
 
     pub fn to_data(&self) -> TabData {

@@ -28,10 +28,16 @@ impl Browser {
             parent_view: view,
             #[cfg(target_os = "windows")]
             parent_window: view,
+            bounds: cef::Rect {
+                x: 0,
+                y: 0,
+                width: 1000,
+                height: 1000,
+            },
             ..Default::default()
         };
 
-        let result = cef::browser_host_create_browser(
+        let browser = cef::browser_host_create_browser_sync(
             Some(&window_info),
             Some(&mut profile.client),
             Some(&initial_url.into()),
@@ -39,14 +45,16 @@ impl Browser {
             None,
             Some(&mut profile.request_context),
         );
-        anyhow::ensure!(result == 1, "Failed to create browser.");
+        // anyhow::ensure!(result == 1, "Failed to create browser.");
 
-        let browser = manager
-            .wait_for_browser()
-            .await
-            .context("Failed to retrieve browser from CEF.")?;
+        // let browser = manager
+        //     .wait_for_browser()
+        //     .await
+        //     .context("Failed to retrieve browser from CEF.")?;
 
-        Ok(Self { sys: browser })
+        Ok(Self {
+            sys: browser.context("ブラウザの作成に失敗しました。")?,
+        })
     }
 
     pub fn view_handle(&self, utm: UIThreadMarker) -> Option<*mut c_void> {
@@ -106,5 +114,9 @@ impl Browser {
             .close_browser(0);
 
         Ok(())
+    }
+
+    pub fn title(&self) -> anyhow::Result<String> {
+        Ok("title TODO".to_owned())
     }
 }

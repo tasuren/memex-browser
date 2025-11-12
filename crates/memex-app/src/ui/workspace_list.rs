@@ -1,6 +1,7 @@
 use gpui::{App, AsyncApp, MouseButton, Window, div, prelude::*};
 use gpui_component::{ActiveTheme, Icon, IconName, Sizable, v_flex};
 use memex_backend::{SystemContext, Workspace, data::WorkspaceIconData};
+use memex_cef::UIThreadMarker;
 use raw_window_handle::HasWindowHandle;
 use uuid::Uuid;
 
@@ -43,7 +44,9 @@ impl Render for WorkspaceList {
                         cx.spawn(move |_cx: &mut AsyncApp| async move {
                             let mut manager = manager.lock().unwrap();
                             let id = manager.home();
-                            manager.open(id, window_handle).await.unwrap();
+                            let utm = UIThreadMarker::new().unwrap();
+
+                            manager.open(utm, id, window_handle).await.unwrap();
                         })
                         .detach();
                     }),
@@ -72,7 +75,9 @@ impl Render for WorkspaceList {
 
                         cx.spawn(move |_cx: &mut AsyncApp| async move {
                             let mut manager = manager.lock().unwrap();
-                            manager.open(id, window_handle).await.unwrap();
+                            let utm = UIThreadMarker::new().unwrap();
+
+                            manager.open(utm, id, window_handle).await.unwrap();
                         })
                         .detach();
                     })
