@@ -1,6 +1,7 @@
-use gpui::{App, Window, div, prelude::*};
-use gpui_component::{ActiveTheme, Icon, Sizable, v_flex};
-use memex_backend::{SystemContext, data::WorkspaceIconData};
+use gpui::{App, AsyncApp, MouseButton, Window, div, prelude::*};
+use gpui_component::{ActiveTheme, Icon, IconName, Sizable, v_flex};
+use memex_backend::{SystemContext, Workspace, data::WorkspaceIconData};
+use raw_window_handle::HasWindowHandle;
 use uuid::Uuid;
 
 pub struct WorkspaceList;
@@ -13,7 +14,7 @@ impl WorkspaceList {
 
 impl Render for WorkspaceList {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
-        let system = cx.global::<SystemContext>().clone();
+        let system = cx.global::<SystemContext>();
         let manager = system.workspace_manager().lock().unwrap();
 
         v_flex()
@@ -34,11 +35,23 @@ impl Render for WorkspaceList {
                         |this| this.bg(cx.theme().accent),
                         |this| this.bg(cx.theme().accent.alpha(0.4)),
                     )
-                    .child(Icon::empty().path("icons/house.svg").large()),
+                    .child(Icon::empty().path("icons/house.svg").large())
+                    .on_mouse_down(MouseButton::Left, |_event, window, cx| {
+                        let manager = cx.global::<SystemContext>().workspace_manager().clone();
+                        let window_handle = window.window_handle().unwrap().as_raw();
+
+                        cx.spawn(move |_cx: &mut AsyncApp| async move {
+                            let mut manager = manager.lock().unwrap();
+                            let id = manager.home();
+                            manager.open(id, window_handle).await.unwrap();
+                        })
+                        .detach();
+                    }),
             )
             .child(div().w_3_4().border_1().border_color(cx.theme().border))
             // User workspaces
             .children(manager.order().iter().enumerate().map(|(ix, id)| {
+                let id = *id;
                 let list = manager.list_metadata();
                 let metadata = list.get(&id).unwrap();
 
@@ -52,8 +65,46 @@ impl Render for WorkspaceList {
                     .justify_center()
                     .text_center()
                     .text_3xl()
-                    .child(WorkspaceIcon(*id))
+                    .child(WorkspaceIcon(id))
+                    .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
+                        let manager = cx.global::<SystemContext>().workspace_manager().clone();
+                        let window_handle = window.window_handle().unwrap().as_raw();
+
+                        cx.spawn(move |_cx: &mut AsyncApp| async move {
+                            let mut manager = manager.lock().unwrap();
+                            manager.open(id, window_handle).await.unwrap();
+                        })
+                        .detach();
+                    })
             }))
+            // Workspace addition button
+            .child(
+                v_flex()
+                    .justify_center()
+                    .items_center()
+                    .child(Icon::new(IconName::Plus))
+                    .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                        let system = cx.global::<SystemContext>().clone();
+                        let manager = system.workspace_manager().clone();
+
+                        cx.spawn(move |_cx: &mut AsyncApp| async move {
+                            let mut manager = manager.lock().unwrap();
+                            let workspace = Workspace::new(
+                                system,
+                                Default::default(),
+                                "New workspace".to_owned(),
+                                Default::default(),
+                            )
+                            .await
+                            .expect("新しいワークスペースの作成に失敗しました。");
+
+                            manager
+                                .add(workspace)
+                                .expect("ワークスペースの追加に失敗しました。");
+                        })
+                        .detach();
+                    }),
+            )
     }
 }
 

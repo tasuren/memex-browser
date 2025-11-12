@@ -2,9 +2,9 @@ use std::ffi::c_void;
 
 use anyhow::Context;
 use cef::{CefStringUtf16, ImplBrowser, ImplBrowserHost, ImplFrame};
-use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+use raw_window_handle::RawWindowHandle;
 
-use crate::{helper::UIThreadMarker, context::CefContext, profile::Profile};
+use crate::{context::CefContext, helper::UIThreadMarker, profile::Profile};
 
 #[derive(Clone)]
 pub struct Browser {
@@ -15,10 +15,10 @@ impl Browser {
     pub async fn new(
         manager: CefContext,
         profile: &mut Profile,
-        parent_window: &impl HasWindowHandle,
+        parent_window: RawWindowHandle,
         initial_url: &str,
     ) -> anyhow::Result<Self> {
-        let view = match parent_window.window_handle().unwrap().as_raw() {
+        let view = match parent_window {
             RawWindowHandle::AppKit(handle) => handle.ns_view.as_ptr(),
             _ => unimplemented!(),
         };

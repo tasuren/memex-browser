@@ -1,7 +1,7 @@
 use std::{ops::Deref, path::PathBuf};
 
 use memex_cef::{Browser, Profile};
-use raw_window_handle::HasWindowHandle;
+use raw_window_handle::RawWindowHandle;
 use uuid::Uuid;
 
 use crate::{
@@ -19,7 +19,7 @@ impl Tab {
         id: Uuid,
         cx: SystemContext,
         mut profile: Profile,
-        window: &impl HasWindowHandle,
+        window: RawWindowHandle,
         location: TabLocationData,
     ) -> anyhow::Result<Self> {
         let url = match location {

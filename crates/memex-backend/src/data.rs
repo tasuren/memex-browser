@@ -24,7 +24,12 @@ mod workspace {
 
             Ok((serde_json::from_slice(&raw)?, false))
         } else {
-            Ok((WorkspaceManagerData::default(), true))
+            let data = WorkspaceManagerData::default();
+            let raw = serde_json::to_vec(&data)
+                .context("ワークスペースマネージャのセーブデータのJSON化に失敗しました。")?;
+            fs::write(path, raw).await?;
+
+            Ok((data, true))
         }
     }
 
@@ -231,20 +236,15 @@ mod models {
         NativeHomePage,
     }
 
-    #[derive(Clone, Debug, Serialize, Deserialize)]
+    #[derive(Debug, Default, Clone, Serialize, Deserialize)]
     #[serde(tag = "type")]
     pub enum WorkspaceIconData {
         Home,
         Emoji(String),
         Text(String),
         Image(PathBuf),
+        #[default]
         Default,
-    }
-
-    impl Default for WorkspaceIconData {
-        fn default() -> Self {
-            Self::Default
-        }
     }
 
     #[derive(Debug, Default, Serialize, Deserialize)]
@@ -313,6 +313,7 @@ mod path {
             if !path.data_local_dir().exists() {
                 fs::create_dir_all(path.data_local_dir()).await?;
             }
+            log::info!("セーブデータの場所: {}", path.data_local_dir().display());
 
             if !path.workspaces().exists() {
                 fs::create_dir(path.workspaces()).await?;
