@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Context;
-use raw_window_handle::HasWindowHandle;
+use raw_window_handle::RawWindowHandle;
 use uuid::Uuid;
 
 use crate::{
@@ -67,7 +67,7 @@ impl WorkspaceManager {
     pub async fn open(
         &mut self,
         id: Uuid,
-        window: &impl HasWindowHandle,
+        window: RawWindowHandle,
     ) -> anyhow::Result<&mut Workspace> {
         self.selected = id;
 

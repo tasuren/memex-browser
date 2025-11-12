@@ -36,7 +36,6 @@ impl EventLoopHandle {
                     }
                 }
                 _ = async_io::Timer::after(delay).fuse() => {
-                    println!("a");
                     run_on_main_thread(cef::do_message_loop_work);
                     delay = Self::FRAME_RATE_DELAY;
                 }

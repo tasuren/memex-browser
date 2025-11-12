@@ -14,6 +14,7 @@ uuid = { workspace = true, features = ["v4"] }
 log.workspace = true
 env_logger.workspace = true
 futures-lite.workspace = true
+raw-window-handle.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2.workspace = true

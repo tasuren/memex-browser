@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Context;
 use memex_cef::{Profile, UIThreadMarker};
-use raw_window_handle::HasWindowHandle;
+use raw_window_handle::RawWindowHandle;
 use uuid::Uuid;
 
 use crate::{
@@ -38,11 +38,11 @@ impl Workspace {
     ) -> anyhow::Result<Self> {
         let data = create_workspace(cx.path(), id, name.clone())
             .await
-            .context("Failed to prepare the workspace directory.")?;
+            .context("ワークスペースのデータ用意に失敗しました。")?;
 
         Ok(Self {
             cx,
-            _profile: Profile::new().context("Failed to prepare profile.")?,
+            _profile: Profile::new().context("プロファイルの用意に失敗しました。")?,
             id: data.id,
             name: data.name,
             icon,
@@ -55,7 +55,7 @@ impl Workspace {
 
     pub async fn load(
         cx: SystemContext,
-        window: &impl HasWindowHandle,
+        window: RawWindowHandle,
         id: Uuid,
     ) -> anyhow::Result<Self> {
         let (data, files) = load_workspace(cx.path(), id)

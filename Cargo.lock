@@ -3621,6 +3621,7 @@ dependencies = [
  "memex-cef",
  "objc2",
  "objc2-app-kit",
+ "raw-window-handle",
  "rust-embed",
  "uuid",
 ]
