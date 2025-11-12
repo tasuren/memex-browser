@@ -1,7 +1,10 @@
+use std::sync::{Arc, Mutex};
+
+use anyhow::Context;
 use gpui::{BackgroundExecutor, ForegroundExecutor, Task};
 use memex_cef::CefContext;
 
-use crate::data::AppPath;
+use crate::{WorkspaceManager, data::AppPath};
 
 #[derive(Clone)]
 pub struct SystemContext {
@@ -9,20 +12,29 @@ pub struct SystemContext {
     path: AppPath,
     background_executor: BackgroundExecutor,
     foreground_executor: ForegroundExecutor,
+    workspace_manager: Option<Arc<Mutex<WorkspaceManager>>>,
 }
 
 impl SystemContext {
-    pub fn new(
+    pub async fn new(
         background_executor: BackgroundExecutor,
         foreground_executor: ForegroundExecutor,
         path: AppPath,
-    ) -> Self {
-        Self {
+    ) -> anyhow::Result<Self> {
+        let mut system = Self {
             cef: CefContext::new(),
             path,
             background_executor,
             foreground_executor,
-        }
+            workspace_manager: None,
+        };
+
+        let workspace_manager = WorkspaceManager::new(system.clone())
+            .await
+            .context("ワークスペースマネージャの用意に失敗しました。")?;
+        system.workspace_manager = Some(Arc::new(Mutex::new(workspace_manager)));
+
+        Ok(system)
     }
 
     pub fn cef(&self) -> &CefContext {
@@ -31,6 +43,10 @@ impl SystemContext {
 
     pub fn path(&self) -> &AppPath {
         &self.path
+    }
+
+    pub fn workspace_manager(&self) -> &Arc<Mutex<WorkspaceManager>> {
+        self.workspace_manager.as_ref().unwrap()
     }
 
     pub fn spawn_background<R>(&self, future: impl Future<Output = R> + Send + 'static) -> Task<R>

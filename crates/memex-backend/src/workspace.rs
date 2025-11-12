@@ -8,8 +8,8 @@ use uuid::Uuid;
 use crate::{
     SystemContext,
     data::{
-        WorkspaceData, WorkspaceIconData, delete_workspace, get_workspaces, load_workspace,
-        prepare_workspace, save_workspace,
+        WorkspaceData, WorkspaceIconData, create_workspace, delete_workspace, load_workspace,
+        save_workspace,
     },
     os::file_system::FileSystemItem,
     tab::Tab,
@@ -30,12 +30,13 @@ pub struct Workspace {
 }
 
 impl Workspace {
-    pub async fn create(
+    pub async fn new(
         cx: SystemContext,
+        id: Uuid,
         name: String,
         icon: WorkspaceIconData,
     ) -> anyhow::Result<Self> {
-        let data = prepare_workspace(cx.path(), name.clone())
+        let data = create_workspace(cx.path(), id, name.clone())
             .await
             .context("Failed to prepare the workspace directory.")?;
 
@@ -87,27 +88,6 @@ impl Workspace {
         Ok(workspace)
     }
 
-    pub async fn load_all(
-        cx: SystemContext,
-        window: &impl HasWindowHandle,
-    ) -> anyhow::Result<Vec<Workspace>> {
-        let mut list = Vec::new();
-
-        for id in get_workspaces(cx.path())
-            .await
-            .context("Failed to get workspaces.")?
-            .into_iter()
-        {
-            list.push(
-                Self::load(cx.clone(), window, id)
-                    .await
-                    .with_context(|| format!("Failed to load the workspace {}.", id))?,
-            );
-        }
-
-        Ok(list)
-    }
-
     pub fn try_save(&self) {
         self.cx
             .spawn_background({
@@ -134,7 +114,7 @@ impl Workspace {
         self.try_save();
     }
 
-    pub fn create_tabe(&mut self, tab: Tab) {
+    pub fn create_tab(&mut self, tab: Tab) {
         self.tabs.insert(tab.id, tab);
         self.try_save();
     }

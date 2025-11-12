@@ -1,118 +1,205 @@
-use std::{io, str::FromStr};
-
-use async_fs as fs;
-use futures_lite::StreamExt;
-
-use crate::os::file_system::{FileSystemItem, build_file_tree};
-
 pub use models::*;
-pub use path::AppPath;
-use uuid::Uuid;
+pub use path::*;
+pub use workspace::*;
 
-pub async fn get_workspaces(path: &AppPath) -> io::Result<Vec<Uuid>> {
-    let mut entries = fs::read_dir(path.workspaces()).await?;
-    let mut workspaces = Vec::new();
+mod workspace {
+    use std::{collections::HashMap, io, str::FromStr};
 
-    while let Some(entry) = entries.try_next().await? {
-        if !entry.file_type().await?.is_dir() {
-            log::warn!(
-                "During getting workspace list, I got non-directory one: {}",
-                entry.path().display()
-            );
-        }
+    use anyhow::Context;
+    use async_fs as fs;
+    use futures_lite::StreamExt;
+    use uuid::Uuid;
 
-        if let Some(id) = entry
-            .path()
-            .file_name()
-            .and_then(|os_str| os_str.to_str())
-            .and_then(|name| Uuid::from_str(name).ok())
-        {
-            workspaces.push(id);
-        } else {
-            log::warn!(
-                "During getting workspace list, I got non-workspace directory: {}",
-                entry.path().display()
-            );
-        }
-    }
-
-    Ok(workspaces)
-}
-
-pub async fn prepare_workspace(path: &AppPath, name: String) -> io::Result<WorkspaceData> {
-    let data = WorkspaceData::new(name);
-    let base = path.workspaces().join(data.id.to_string());
-
-    if base.exists() {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "指定されたワークスペースのフォルダには既に何か存在しています。",
-        ));
-    }
-
-    fs::create_dir(&base).await?;
-    fs::create_dir(base.join("knowledges")).await?;
-
-    let workspace_data_path = base.join("workspace.json");
-    fs::write(workspace_data_path, serde_json::to_vec(&data).unwrap()).await?;
-
-    Ok(data)
-}
-
-pub async fn load_workspace(
-    path: &AppPath,
-    id: Uuid,
-) -> io::Result<(WorkspaceData, Vec<FileSystemItem>)> {
-    let base = path.workspaces().join(id.to_string());
-
-    let workspace_data_path = base.join("workspace.json");
-    if !workspace_data_path.exists() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "指定されたワークスペースのフォルダには、ワークスペースのセーブデータがありません。",
-        ));
+    use crate::{
+        Workspace,
+        data::{AppPath, WorkspaceData, WorkspaceIconData, WorkspaceManagerData},
+        os::file_system::{FileSystemItem, build_file_tree},
     };
 
-    let data: WorkspaceData =
-        serde_json::from_slice(&fs::read(workspace_data_path).await?).unwrap();
+    pub async fn get_manager_state(path: &AppPath) -> anyhow::Result<(WorkspaceManagerData, bool)> {
+        let path = path.workspaces().join("manager.json");
 
-    let workspace_files_dir = base.join("knowledges");
-    if !workspace_files_dir.exists() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
+        if path.exists() {
+            let raw = fs::read(path).await?;
+
+            Ok((serde_json::from_slice(&raw)?, false))
+        } else {
+            Ok((WorkspaceManagerData::default(), true))
+        }
+    }
+
+    pub struct WorkspaceMetadata {
+        pub(crate) id: Uuid,
+        pub(crate) icon: WorkspaceIconData,
+        pub(crate) name: String,
+    }
+
+    impl WorkspaceMetadata {
+        pub fn id(&self) -> Uuid {
+            self.id
+        }
+
+        pub fn icon(&self) -> &WorkspaceIconData {
+            &self.icon
+        }
+
+        pub fn name(&self) -> &String {
+            &self.name
+        }
+    }
+
+    impl From<WorkspaceData> for WorkspaceMetadata {
+        fn from(value: WorkspaceData) -> Self {
+            Self {
+                id: value.id,
+                icon: value.icon,
+                name: value.name,
+            }
+        }
+    }
+
+    impl From<&Workspace> for WorkspaceMetadata {
+        fn from(value: &Workspace) -> Self {
+            Self {
+                id: value.id,
+                icon: value.icon.clone(),
+                name: value.name.clone(),
+            }
+        }
+    }
+
+    async fn load_workspace_metadata(
+        path: &AppPath,
+        id: Uuid,
+    ) -> anyhow::Result<WorkspaceMetadata> {
+        let base = path.workspaces().join(id.to_string());
+        anyhow::ensure!(
+            base.exists(),
+            "指定されたワークスペースのフォルダはありません。"
+        );
+
+        let data: WorkspaceData =
+            serde_json::from_slice(&fs::read(base.join("workspace.json")).await?)
+                .context("ワークスペースのセーブデータを処理するのに失敗しました。")?;
+        Ok(data.into())
+    }
+
+    pub async fn list_workspace(
+        path: &AppPath,
+    ) -> anyhow::Result<HashMap<Uuid, WorkspaceMetadata>> {
+        let mut entries = fs::read_dir(path.workspaces()).await?;
+        let mut workspaces = HashMap::new();
+
+        while let Some(entry) = entries.try_next().await? {
+            if !entry.file_type().await?.is_dir() {
+                log::warn!(
+                    "ワークスペースのリストを取得中に、フォルダではないものがありました: {}",
+                    entry.path().display()
+                );
+            }
+
+            if let Some(id) = entry
+                .path()
+                .file_name()
+                .and_then(|os_str| os_str.to_str())
+                .and_then(|name| Uuid::from_str(name).ok())
+            {
+                let data = load_workspace_metadata(path, id).await.with_context(|| {
+                    format!("{id}のワークスペースのデータ読み込みに失敗しました。")
+                })?;
+
+                workspaces.insert(id, data);
+            } else {
+                log::warn!(
+                    "ワークスペースの処理中、ワークスペースでない何かに遭遇しました: {}",
+                    entry.path().display()
+                );
+            }
+        }
+
+        Ok(workspaces)
+    }
+
+    pub async fn create_workspace(
+        path: &AppPath,
+        id: Uuid,
+        name: String,
+    ) -> io::Result<WorkspaceData> {
+        let data = WorkspaceData::new(id, name);
+        let base = path.workspaces().join(data.id.to_string());
+
+        if base.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "指定されたワークスペースのフォルダには既に何か存在しています。",
+            ));
+        }
+
+        fs::create_dir(&base).await?;
+        fs::create_dir(base.join("knowledges")).await?;
+
+        let workspace_data_path = base.join("workspace.json");
+        fs::write(workspace_data_path, serde_json::to_vec(&data).unwrap()).await?;
+
+        Ok(data)
+    }
+
+    pub async fn load_workspace(
+        path: &AppPath,
+        id: Uuid,
+    ) -> anyhow::Result<(WorkspaceData, Vec<FileSystemItem>)> {
+        let base = path.workspaces().join(id.to_string());
+
+        let workspace_data_path = base.join("workspace.json");
+        anyhow::ensure!(
+            workspace_data_path.exists(),
+            "指定されたワークスペースのフォルダには、ワークスペースのセーブデータがありません。"
+        );
+
+        let data: WorkspaceData = serde_json::from_slice(&fs::read(workspace_data_path).await?)
+            .context("ワークスペースのセーブデータの処理に失敗しました。")?;
+
+        let workspace_files_dir = base.join("knowledges");
+        anyhow::ensure!(
+            workspace_files_dir.exists(),
             "指定されたワークスペースのフォルダにナレッジフォルダが見つかりませんでした。",
-        ));
+        );
+
+        Ok((
+            data,
+            build_file_tree(&workspace_files_dir)
+                .await
+                .context("ワークスペース内のフォルダのスキャンに失敗しました。")?,
+        ))
     }
 
-    Ok((data, build_file_tree(&workspace_files_dir).await?))
-}
+    pub async fn save_workspace(path: &AppPath, data: &WorkspaceData) -> io::Result<()> {
+        let base = path.workspaces().join(data.id.to_string());
+        if !base.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "指定されたワークスペースのフォルダがありませんでした。",
+            ));
+        }
 
-pub async fn save_workspace(path: &AppPath, data: &WorkspaceData) -> io::Result<()> {
-    let base = path.workspaces().join(data.id.to_string());
-    if !base.exists() {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "指定されたワークスペースのフォルダがありませんでした。",
-        ));
+        fs::write(
+            base.join("workspace.json"),
+            serde_json::to_vec(data).unwrap(),
+        )
+        .await
     }
 
-    fs::write(
-        base.join("workspace.json"),
-        serde_json::to_vec(data).unwrap(),
-    )
-    .await
-}
+    pub async fn delete_workspace(path: &AppPath, id: Uuid) -> io::Result<()> {
+        let base = path.workspaces().join(id.to_string());
+        if !base.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "指定されたワークスペースは既に存在しません。",
+            ));
+        }
 
-pub async fn delete_workspace(path: &AppPath, id: Uuid) -> io::Result<()> {
-    let base = path.workspaces().join(id.to_string());
-    if !base.exists() {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "指定されたワークスペースは既に存在しません。",
-        ));
+        fs::remove_dir_all(base).await
     }
-
-    fs::remove_dir_all(base).await
 }
 
 mod models {
@@ -122,6 +209,13 @@ mod models {
     use uuid::Uuid;
 
     use crate::Workspace;
+
+    #[derive(Debug, Default, Serialize, Deserialize)]
+    pub struct WorkspaceManagerData {
+        pub home: Uuid,
+        pub order: Vec<Uuid>,
+        pub selected: Uuid,
+    }
 
     #[derive(Debug, Serialize, Deserialize)]
     pub struct TabData {
@@ -140,6 +234,7 @@ mod models {
     #[derive(Clone, Debug, Serialize, Deserialize)]
     #[serde(tag = "type")]
     pub enum WorkspaceIconData {
+        Home,
         Emoji(String),
         Text(String),
         Image(PathBuf),
@@ -163,9 +258,9 @@ mod models {
     }
 
     impl WorkspaceData {
-        pub fn new(name: String) -> Self {
+        pub fn new(id: Uuid, name: String) -> Self {
             Self {
-                id: Uuid::new_v4(),
+                id,
                 name,
                 icon: Default::default(),
                 tabs: Default::default(),
