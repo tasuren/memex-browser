@@ -8,8 +8,8 @@ use uuid::Uuid;
 use crate::{
     SystemContext,
     data::{
-        WorkspaceData, WorkspaceIconData, create_workspace, delete_workspace, load_workspace,
-        save_workspace,
+        TabLocationData, WorkspaceData, WorkspaceIconData, create_workspace, delete_workspace,
+        load_workspace, save_workspace,
     },
     os::file_system::FileSystemItem,
     tab::Tab,
@@ -17,7 +17,7 @@ use crate::{
 
 pub struct Workspace {
     cx: SystemContext,
-    _profile: Profile,
+    profile: Profile,
 
     pub(crate) id: Uuid,
     pub(crate) name: String,
@@ -42,7 +42,7 @@ impl Workspace {
 
         Ok(Self {
             cx,
-            _profile: Profile::new().context("プロファイルの用意に失敗しました。")?,
+            profile: Profile::new().context("プロファイルの用意に失敗しました。")?,
             id: data.id,
             name: data.name,
             icon,
@@ -54,6 +54,7 @@ impl Workspace {
     }
 
     pub async fn load(
+        utm: UIThreadMarker,
         cx: SystemContext,
         window: RawWindowHandle,
         id: Uuid,
@@ -70,12 +71,13 @@ impl Workspace {
                 .await
                 .with_context(|| format!("Failed to restore the tab {}.", id))?;
 
+            tab.set_hidden(utm, true);
             tabs.insert(id, tab);
         }
 
         let workspace = Self {
             cx,
-            _profile: profile,
+            profile,
             id,
             name: data.name,
             icon: data.icon,
@@ -109,14 +111,53 @@ impl Workspace {
         self.id
     }
 
+    pub fn selected_tab(&self) -> Option<Uuid> {
+        self.selected
+    }
+
+    pub fn select(&mut self, utm: UIThreadMarker, id: Uuid) -> anyhow::Result<()> {
+        for (tab_id, tab) in self.tabs.iter() {
+            if *tab_id == id {
+                tab.set_hidden(utm, false);
+            } else {
+                tab.set_hidden(utm, true);
+            }
+        }
+
+        self.selected = Some(id);
+
+        Ok(())
+    }
+
+    pub fn tab_order(&self) -> &Vec<Uuid> {
+        &self.tab_order
+    }
+
+    pub fn get_tab(&self, id: Uuid) -> Option<&Tab> {
+        self.tabs.get(&id)
+    }
+
     pub async fn set_name(&mut self, name: String) {
         self.name = name;
         self.try_save();
     }
 
-    pub fn create_tab(&mut self, tab: Tab) {
+    pub async fn create_tab(&mut self, window: RawWindowHandle) -> anyhow::Result<()> {
+        let tab = Tab::new(
+            Uuid::new_v4(),
+            self.cx.clone(),
+            self.profile.clone(),
+            window,
+            TabLocationData::WebPage {
+                url: "https://www.google.com".to_owned(),
+            },
+        )
+        .await?;
+
         self.tabs.insert(tab.id, tab);
         self.try_save();
+
+        Ok(())
     }
 
     pub fn close_tab(&mut self, utm: UIThreadMarker, id: Uuid) -> anyhow::Result<()> {

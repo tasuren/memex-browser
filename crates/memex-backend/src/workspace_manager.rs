@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Context;
+use memex_cef::UIThreadMarker;
 use raw_window_handle::RawWindowHandle;
 use uuid::Uuid;
 
@@ -66,6 +67,7 @@ impl WorkspaceManager {
 
     pub async fn open(
         &mut self,
+        utm: UIThreadMarker,
         id: Uuid,
         window: RawWindowHandle,
     ) -> anyhow::Result<&mut Workspace> {
@@ -73,13 +75,23 @@ impl WorkspaceManager {
 
         if !self.loaded.contains_key(&id) {
             // まだロードしていないなら、ロードする。
-            let workspace = Workspace::load(self.cx.clone(), window, id)
+            let workspace = Workspace::load(utm, self.cx.clone(), window, id)
                 .await
                 .context("ワークスペースの読み込みに失敗しました。")?;
             self.loaded.insert(id, workspace);
         };
 
         Ok(self.loaded.get_mut(&id).unwrap())
+    }
+
+    pub fn get(&self, id: Uuid) -> Option<&Workspace> {
+        self.loaded.get(&id)
+    }
+
+    pub fn get_mut(&mut self, id: Uuid) -> anyhow::Result<&mut Workspace> {
+        self.loaded
+            .get_mut(&id)
+            .context("そのワークスペースはまだロードしていません。")
     }
 
     pub fn add(&mut self, workspace: Workspace) -> anyhow::Result<()> {
