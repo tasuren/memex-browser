@@ -7,7 +7,7 @@ use raw_window_handle::HasWindowHandle;
 use uuid::Uuid;
 
 use crate::{
-    LayoutState, OnlyUIThread, WorkspaceListState,
+    OnlyUIThread, WorkspaceListState,
     data::{AppPath, TabLocationData, WorkspaceData, WorkspaceIconData, delete_workspace},
     os::file_system::FileSystemItem,
     tab::Tab,
@@ -61,7 +61,7 @@ impl WorkspaceState {
             tabs.insert(id, tab);
         }
 
-        Ok(cx.new(|_cx| Self {
+        Ok(cx.new(|cx| Self {
             workspace_list,
             profile,
             id: data.id,
@@ -133,6 +133,7 @@ impl WorkspaceState {
         let id = tab.read(cx).id;
 
         self.tabs.insert(id, tab);
+        self.tab_order.push(id);
 
         Ok(())
     }
