@@ -1,181 +1,162 @@
 use std::collections::HashMap;
 
-use anyhow::Context;
-use memex_cef::{Profile, UIThreadMarker};
-use raw_window_handle::RawWindowHandle;
+use anyhow::Context as _;
+use gpui::{App, Context, Entity, WeakEntity, Window, prelude::*};
+use memex_cef::{Profile, UIThreadMarker, utils::Rect};
+use raw_window_handle::HasWindowHandle;
 use uuid::Uuid;
 
 use crate::{
-    SystemContext,
-    data::{
-        TabLocationData, WorkspaceData, WorkspaceIconData, create_workspace, delete_workspace,
-        load_workspace, save_workspace,
-    },
+    LayoutState, OnlyUIThread, WorkspaceListState,
+    data::{AppPath, TabLocationData, WorkspaceData, WorkspaceIconData, delete_workspace},
     os::file_system::FileSystemItem,
     tab::Tab,
 };
 
-pub struct Workspace {
-    cx: SystemContext,
+pub struct WorkspaceState {
+    workspace_list: WeakEntity<WorkspaceListState>,
     profile: Profile,
 
     pub(crate) id: Uuid,
     pub(crate) name: String,
     pub(crate) icon: WorkspaceIconData,
-    pub(crate) tabs: HashMap<Uuid, Tab>,
+    pub(crate) tabs: HashMap<Uuid, Entity<Tab>>,
     pub(crate) tab_order: Vec<Uuid>,
     pub(crate) selected: Option<Uuid>,
 
     files: Vec<FileSystemItem>,
 }
 
-impl Workspace {
-    pub async fn new(
-        cx: SystemContext,
-        id: Uuid,
-        name: String,
-        icon: WorkspaceIconData,
-    ) -> anyhow::Result<Self> {
-        let data = create_workspace(cx.path(), id, name.clone())
-            .await
-            .context("ワークスペースのデータ用意に失敗しました。")?;
-
-        Ok(Self {
-            cx,
-            profile: Profile::new().context("プロファイルの用意に失敗しました。")?,
-            id: data.id,
-            name: data.name,
-            icon,
-            tabs: HashMap::new(),
-            tab_order: Vec::new(),
-            selected: None,
-            files: Vec::new(),
-        })
-    }
-
-    pub async fn load(
-        utm: UIThreadMarker,
-        cx: SystemContext,
-        window: RawWindowHandle,
-        id: Uuid,
-    ) -> anyhow::Result<Self> {
-        let (data, files) = load_workspace(cx.path(), id)
-            .await
-            .context("Failed to load the workspace.")?;
-
-        let profile = Profile::new().context("Failed to prepare the profile.")?;
+impl WorkspaceState {
+    pub fn new(
+        window: &mut Window,
+        cx: &mut Context<'_, WorkspaceListState>,
+        rect: Rect,
+        data: WorkspaceData,
+        files: Vec<FileSystemItem>,
+    ) -> anyhow::Result<Entity<Self>> {
+        let workspace_list = cx.weak_entity();
+        let profile = Profile::new().unwrap();
 
         let mut tabs = HashMap::new();
-        for (id, tab_data) in data.tabs.into_iter() {
-            let tab = Tab::new(id, cx.clone(), profile.clone(), window, tab_data.location)
-                .await
-                .with_context(|| format!("Failed to restore the tab {}.", id))?;
+        let window_handle = window.window_handle().unwrap().as_raw();
+        let utm = window.utm();
 
-            tab.set_hidden(utm, true);
+        // タブの復元。
+        for (id, tab_data) in data.tabs.into_iter() {
+            let tab = Tab::new(
+                cx,
+                window_handle,
+                rect.clone(),
+                id,
+                profile.clone(),
+                tab_data.location,
+            )
+            .with_context(|| format!("{}のタブを復元するのに失敗しました。", id))?;
+
+            tab.update(cx, |tab, _cx| {
+                let show = data.selected.is_some_and(|selected| selected == tab.id);
+                tab.set_hidden(utm, !show)
+            });
             tabs.insert(id, tab);
         }
 
-        let workspace = Self {
-            cx,
+        Ok(cx.new(|_cx| Self {
+            workspace_list,
             profile,
-            id,
+            id: data.id,
             name: data.name,
             icon: data.icon,
             tabs,
             tab_order: data.tab_order,
-            selected: None,
+            selected: data.selected,
             files,
-        };
-
-        Ok(workspace)
-    }
-
-    pub fn try_save(&self) {
-        self.cx
-            .spawn_background({
-                let path = self.cx.path().clone();
-                let data: WorkspaceData = self.into();
-
-                async move {
-                    let id = data.id;
-
-                    if let Err(e) = save_workspace(&path, &data).await {
-                        log::warn!("Failed to save the workspace data of {}: {}", id, e);
-                    };
-                }
-            })
-            .detach();
+        }))
     }
 
     pub fn id(&self) -> Uuid {
         self.id
     }
 
+    pub fn icon(&self) -> &WorkspaceIconData {
+        &self.icon
+    }
+
     pub fn selected_tab(&self) -> Option<Uuid> {
         self.selected
     }
 
-    pub fn select(&mut self, utm: UIThreadMarker, id: Uuid) -> anyhow::Result<()> {
+    pub fn select(&mut self, cx: &mut App, id: Uuid) {
         for (tab_id, tab) in self.tabs.iter() {
-            if *tab_id == id {
-                tab.set_hidden(utm, false);
-            } else {
-                tab.set_hidden(utm, true);
-            }
+            tab.update(cx, |tab, cx| {
+                if *tab_id == id {
+                    tab.set_hidden(cx.utm(), false);
+                } else {
+                    tab.set_hidden(cx.utm(), true);
+                }
+            });
         }
 
         self.selected = Some(id);
-
-        Ok(())
     }
 
     pub fn tab_order(&self) -> &Vec<Uuid> {
         &self.tab_order
     }
 
-    pub fn get_tab(&self, id: Uuid) -> Option<&Tab> {
+    pub fn get_tab(&self, id: Uuid) -> Option<&Entity<Tab>> {
         self.tabs.get(&id)
     }
 
-    pub async fn set_name(&mut self, name: String) {
+    pub fn set_name(&mut self, name: String) {
         self.name = name;
-        self.try_save();
     }
 
-    pub async fn create_tab(&mut self, window: RawWindowHandle) -> anyhow::Result<()> {
+    pub fn create_tab(&mut self, window: &mut Window, cx: &mut App) -> anyhow::Result<()> {
+        let window_handle = window.window_handle().unwrap().as_raw();
+        let rect = self
+            .workspace_list
+            .read_with(cx, |list, cx| list.layout_state.read(cx).view_rect(window))
+            .unwrap();
+        let location = TabLocationData::WebPage {
+            url: "https://www.google.com".to_owned(),
+        };
+
         let tab = Tab::new(
+            cx,
+            window_handle,
+            rect,
             Uuid::new_v4(),
-            self.cx.clone(),
             self.profile.clone(),
-            window,
-            TabLocationData::WebPage {
-                url: "https://www.google.com".to_owned(),
-            },
-        )
-        .await?;
+            location,
+        )?;
+        let id = tab.read(cx).id;
 
-        self.tabs.insert(tab.id, tab);
-        self.try_save();
+        self.tabs.insert(id, tab);
 
         Ok(())
     }
 
-    pub fn close_tab(&mut self, utm: UIThreadMarker, id: Uuid) -> anyhow::Result<()> {
-        let tab = self.tabs.remove(&id).context("This tab is not found.")?;
-        self.try_save();
-        tab.close(utm)
-            .context("Failed to properly close the tab.")?;
+    pub fn close_tab(&mut self, cx: &mut App, utm: UIThreadMarker, id: Uuid) -> anyhow::Result<()> {
+        let tab = self.tabs.remove(&id).context("タブがありませんでした。")?;
 
-        Ok(())
-    }
-
-    pub async fn destroy(mut self, utm: UIThreadMarker) -> anyhow::Result<()> {
-        for (id, tab) in self.tabs.drain() {
+        tab.update(cx, |tab, _cx| {
             tab.close(utm)
+                .context("Failed to properly close the tab.")?;
+
+            anyhow::Ok(())
+        })?;
+
+        Ok(())
+    }
+
+    pub async fn destroy(mut self, cx: &mut App, utm: UIThreadMarker) -> anyhow::Result<()> {
+        for (id, tab) in self.tabs.drain() {
+            tab.update(cx, |tab: &mut Tab, _cx| tab.close(utm))
                 .with_context(|| format!("Failed to close the tab {}.", id))?;
         }
 
-        delete_workspace(self.cx.path(), self.id)
+        delete_workspace(cx.global::<AppPath>(), self.id)
             .await
             .context("Failed to delete the workspace data.")?;
 

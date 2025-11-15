@@ -1,4 +1,4 @@
-use gpui::{Entity, prelude::*, px};
+use gpui::{App, Entity, prelude::*, px};
 use gpui_component::*;
 
 pub struct Exproler {
@@ -6,8 +6,8 @@ pub struct Exproler {
 }
 
 impl Exproler {
-    pub fn new(cx: &mut Context<Self>) -> Self {
-        Self {
+    pub fn new(cx: &mut App) -> Entity<Self> {
+        cx.new(|cx| Self {
             tree: cx.new(|cx| {
                 TreeState::new(cx).items(vec![
                     TreeItem::new("cef-github", "tauri-apps/cef-rs"),
@@ -16,7 +16,7 @@ impl Exproler {
                     TreeItem::new("note", "note.md"),
                 ])
             }),
-        }
+        })
     }
 }
 

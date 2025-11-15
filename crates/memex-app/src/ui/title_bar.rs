@@ -1,4 +1,4 @@
-use gpui::{Entity, div, prelude::*, px};
+use gpui::{App, Entity, div, prelude::*, px};
 use gpui_component::{
     ActiveTheme, Icon, IconName, Sizable,
     button::{Button, ButtonVariants},
@@ -6,29 +6,33 @@ use gpui_component::{
     input::{InputState, TextInput},
     v_flex,
 };
+use memex_backend::{LayoutState, WorkspaceState};
 
 use crate::ui::{
-    tab_bar::TabBar,
     consts::{TOP_TAB_BAR_HEIGHT, URL_BAR_HEIGHT},
+    tab_bar::TabBar,
 };
 
-pub struct Controller {
+pub struct TitleBar {
     tabs: Entity<TabBar>,
-
     url: Entity<InputState>,
 }
 
-impl Controller {
-    pub fn new(window: &mut gpui::Window, cx: &mut Context<Self>) -> Self {
-        Self {
-            tabs: cx.new(|cx| TabBar::new(cx)),
-
+impl TitleBar {
+    pub fn new(
+        window: &mut gpui::Window,
+        cx: &mut App,
+        layout_state: Entity<LayoutState>,
+        workspace_state: Entity<WorkspaceState>,
+    ) -> Entity<Self> {
+        cx.new(|cx| Self {
+            tabs: TabBar::new(cx, layout_state, workspace_state),
             url: cx.new(|cx| InputState::new(window, cx).default_value("https://www.google.com/")),
-        }
+        })
     }
 }
 
-impl Render for Controller {
+impl Render for TitleBar {
     fn render(&mut self, _window: &mut gpui::Window, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex()
             .child(

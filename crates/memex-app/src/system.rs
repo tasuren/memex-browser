@@ -1,27 +1,18 @@
-use futures_lite::future;
+use futures_lite::future::block_on;
 use gpui::{App, Application};
-use memex_backend::{SystemContext, data::AppPath};
+use memex_backend::init_global_state;
 
-use crate::setup_window;
+use crate::{APP_IDENTIFIER, setup_window};
 
 pub fn boot() {
     init_log();
 
-    let app = Application::new();
-
-    let system = future::block_on(async {
-        let path = AppPath::new(crate::APP_IDENTIFIER.to_owned())
-            .await
-            .expect("システムのセーブデータ格納場所の構築に失敗しました。");
-
-        SystemContext::new(app.background_executor(), app.foreground_executor(), path)
-            .await
-            .expect("システムの初期化に失敗しました。")
-    });
-
-    app.with_assets(crate::foundation::Assets)
+    Application::new()
+        .with_assets(crate::foundation::Assets)
         .run(move |cx: &mut App| {
-            init_cef(cx, system);
+            block_on(init_global_state(cx, APP_IDENTIFIER.to_owned())).unwrap();
+
+            init_cef(cx);
             init_ui(cx);
 
             setup_window(cx).expect("ウィンドウの作成に失敗しました。");
@@ -35,13 +26,12 @@ pub fn init_log() {
 }
 
 #[inline]
-pub fn init_cef(cx: &mut App, system: SystemContext) {
+pub fn init_cef(cx: &mut App) {
     let mut event_loop = match memex_cef::boot().expect("CEFの起動処理に失敗しました。")
     {
         Some(event_loop) => event_loop,
         None => std::process::exit(0),
     };
-    cx.set_global(system);
 
     cx.spawn(async move |_| {
         event_loop.start(|task| task()).await;

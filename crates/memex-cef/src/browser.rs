@@ -4,7 +4,11 @@ use anyhow::Context;
 use cef::{CefStringUtf16, ImplBrowser, ImplBrowserHost, ImplFrame};
 use raw_window_handle::RawWindowHandle;
 
-use crate::{context::CefContext, helper::UIThreadMarker, profile::Profile};
+use crate::{
+    UIThreadMarker,
+    profile::Profile,
+    utils::{self, Rect},
+};
 
 #[derive(Clone)]
 pub struct Browser {
@@ -12,11 +16,11 @@ pub struct Browser {
 }
 
 impl Browser {
-    pub async fn new(
-        manager: CefContext,
+    pub fn new(
         profile: &mut Profile,
         parent_window: RawWindowHandle,
         initial_url: &str,
+        rect: utils::Rect,
     ) -> anyhow::Result<Self> {
         let view = match parent_window {
             RawWindowHandle::AppKit(handle) => handle.ns_view.as_ptr(),
@@ -28,12 +32,7 @@ impl Browser {
             parent_view: view,
             #[cfg(target_os = "windows")]
             parent_window: view,
-            bounds: cef::Rect {
-                x: 0,
-                y: 0,
-                width: 1000,
-                height: 1000,
-            },
+            bounds: rect.into(),
             ..Default::default()
         };
 
@@ -55,6 +54,10 @@ impl Browser {
         Ok(Self {
             sys: browser.context("ブラウザの作成に失敗しました。")?,
         })
+    }
+
+    pub fn on_resize(&self, _rect: Rect) {
+        log::info!("TODO: on_resize");
     }
 
     pub fn view_handle(&self, utm: UIThreadMarker) -> Option<*mut c_void> {
