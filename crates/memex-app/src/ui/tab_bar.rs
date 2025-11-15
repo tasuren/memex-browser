@@ -15,7 +15,7 @@ impl TabBar {
         layout_state: Entity<LayoutState>,
         workspace: Entity<WorkspaceState>,
     ) -> Entity<Self> {
-        cx.new(|_| Self {
+        cx.new(|_cx| Self {
             layout_state,
             workspace,
         })
@@ -89,6 +89,8 @@ impl Render for TabBar {
                                 workspace
                                     .create_tab(window, cx)
                                     .expect("新しいタブを開くのに失敗しました。");
+
+                                cx.notify();
                             });
                         }
                     }),
