@@ -42,18 +42,21 @@ parser.add_argument("-d", "--lldb", action="store_true")
 
 args = parser.parse_args()
 
-if args.build:
-    logger.info("memex-appのビルド")
-    cargo_build("memex-app", release=args.release)
+try:
+    if args.build:
+        logger.info("memex-appのビルド")
+        cargo_build("memex-app", release=args.release)
 
-if args.build_helper:
-    logger.info("memex-cef-helperのビルド")
-    cargo_build("memex-cef-helper", release=args.release)
+    if args.build_helper:
+        logger.info("memex-cef-helperのビルド")
+        cargo_build("memex-cef-helper", release=args.release)
 
-if args.bundle:
-    logger.info("バンドルの作成")
-    macbundle(release=args.release)
+    if args.bundle:
+        logger.info("バンドルの作成")
+        macbundle(release=args.release)
 
-if args.run:
-    logger.info("=== バンドルの実行 ===\n")
-    run(is_release=args.release, lldb=args.lldb)
+    if args.run:
+        logger.info("=== バンドルの実行 ===\n")
+        run(is_release=args.release, lldb=args.lldb)
+except KeyboardInterrupt:
+    exit(130)
