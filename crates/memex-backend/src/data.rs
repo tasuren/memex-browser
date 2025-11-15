@@ -11,25 +11,25 @@ mod workspace {
     use uuid::Uuid;
 
     use crate::{
-        Workspace,
-        data::{AppPath, WorkspaceData, WorkspaceIconData, WorkspaceManagerData},
+        WorkspaceState,
+        data::{AppPath, WorkspaceData, WorkspaceIconData, WorkspaceListData},
         os::file_system::{FileSystemItem, build_file_tree},
     };
 
-    pub async fn get_manager_state(path: &AppPath) -> anyhow::Result<(WorkspaceManagerData, bool)> {
-        let path = path.workspaces().join("manager.json");
+    pub async fn get_workspace_list(path: &AppPath) -> anyhow::Result<WorkspaceListData> {
+        let path = path.workspaces().join("list.json");
 
         if path.exists() {
             let raw = fs::read(path).await?;
 
-            Ok((serde_json::from_slice(&raw)?, false))
+            Ok(serde_json::from_slice(&raw)?)
         } else {
-            let data = WorkspaceManagerData::default();
+            let data = WorkspaceListData::default();
             let raw = serde_json::to_vec(&data)
                 .context("ワークスペースマネージャのセーブデータのJSON化に失敗しました。")?;
             fs::write(path, raw).await?;
 
-            Ok((data, true))
+            Ok(data)
         }
     }
 
@@ -63,8 +63,18 @@ mod workspace {
         }
     }
 
-    impl From<&Workspace> for WorkspaceMetadata {
-        fn from(value: &Workspace) -> Self {
+    impl From<&WorkspaceData> for WorkspaceMetadata {
+        fn from(value: &WorkspaceData) -> Self {
+            Self {
+                id: value.id,
+                icon: value.icon.clone(),
+                name: value.name.clone(),
+            }
+        }
+    }
+
+    impl From<&WorkspaceState> for WorkspaceMetadata {
+        fn from(value: &WorkspaceState) -> Self {
             Self {
                 id: value.id,
                 icon: value.icon.clone(),
@@ -89,7 +99,7 @@ mod workspace {
         Ok(data.into())
     }
 
-    pub async fn list_workspace(
+    pub async fn list_workspaces(
         path: &AppPath,
     ) -> anyhow::Result<HashMap<Uuid, WorkspaceMetadata>> {
         let mut entries = fs::read_dir(path.workspaces()).await?;
@@ -210,13 +220,14 @@ mod workspace {
 mod models {
     use std::{collections::HashMap, path::PathBuf};
 
+    use gpui::{App, Entity};
     use serde::{Deserialize, Serialize};
     use uuid::Uuid;
 
-    use crate::Workspace;
+    use crate::{Tab, WorkspaceState};
 
     #[derive(Debug, Default, Serialize, Deserialize)]
-    pub struct WorkspaceManagerData {
+    pub struct WorkspaceListData {
         pub home: Uuid,
         pub order: Vec<Uuid>,
         pub selected: Uuid,
@@ -226,6 +237,19 @@ mod models {
     pub struct TabData {
         pub id: Uuid,
         pub location: TabLocationData,
+    }
+
+    impl TabData {
+        pub fn from_entity(cx: &App, tab: &Entity<Tab>) -> Self {
+            let tab = tab.read(cx);
+
+            Self {
+                id: tab.id,
+                location: TabLocationData::WebPage {
+                    url: tab.current_url(),
+                },
+            }
+        }
     }
 
     #[derive(Debug, Serialize, Deserialize)]
@@ -247,7 +271,7 @@ mod models {
         Default,
     }
 
-    #[derive(Debug, Default, Serialize, Deserialize)]
+    #[derive(Debug, Serialize, Deserialize)]
     pub struct WorkspaceData {
         pub id: Uuid,
         pub name: String,
@@ -268,45 +292,49 @@ mod models {
                 selected: Default::default(),
             }
         }
-    }
 
-    impl From<&Workspace> for WorkspaceData {
-        fn from(value: &Workspace) -> Self {
+        pub fn from_entity(&self, cx: &App, workspace: &Entity<WorkspaceState>) -> Self {
+            let workspace = workspace.read(cx);
+
             WorkspaceData {
-                id: value.id,
-                name: value.name.clone(),
-                icon: value.icon.clone(),
-                tabs: value
+                id: workspace.id,
+                name: workspace.name.clone(),
+                icon: workspace.icon.clone(),
+                tabs: workspace
                     .tabs
                     .iter()
-                    .map(|(id, tab)| (*id, tab.to_data()))
+                    .map(|(id, tab)| (*id, TabData::from_entity(cx, tab)))
                     .collect(),
-                tab_order: value.tab_order.clone(),
-                selected: value.selected.clone(),
+                tab_order: workspace.tab_order.clone(),
+                selected: workspace.selected.clone(),
             }
         }
     }
 }
 
 mod path {
-    use std::{io, path::PathBuf, sync::Arc};
+    use std::{io, path::PathBuf};
 
     use async_fs as fs;
 
+    #[cfg(not(debug_assertions))]
     struct PathState {
         application_identifier: String,
     }
 
+    /// アプリのデータを保存するパスを容易するための構造体。
     #[derive(Clone)]
     pub struct AppPath {
+        #[cfg(not(debug_assertions))]
         state: Arc<PathState>,
     }
 
     impl AppPath {
-        pub async fn new(application_identifier: String) -> io::Result<Self> {
+        pub async fn new(_application_identifier: String) -> io::Result<Self> {
             let path = Self {
+                #[cfg(not(debug_assertions))]
                 state: Arc::new(PathState {
-                    application_identifier,
+                    application_identifier: _application_identifier,
                 }),
             };
 
@@ -323,9 +351,16 @@ mod path {
         }
 
         pub fn data_local_dir(&self) -> PathBuf {
-            dirs::data_local_dir()
-                .expect("Failed to get the local data directory path.")
-                .join(&self.state.application_identifier)
+            #[cfg(debug_assertions)]
+            {
+                PathBuf::new().join(".dev").join("app_data")
+            }
+            #[cfg(not(debug_assertions))]
+            {
+                dirs::data_local_dir()
+                    .expect("Failed to get the local data directory path.")
+                    .join(&self.state.application_identifier)
+            }
         }
 
         pub fn workspaces(&self) -> PathBuf {

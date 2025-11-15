@@ -1,24 +1,62 @@
-use gpui::{App, AsyncApp, MouseButton, Window, div, prelude::*};
+use gpui::{AnyElement, App, Entity, MouseButton, ReadGlobal, Window, div, prelude::*};
 use gpui_component::{ActiveTheme, Icon, IconName, Sizable, v_flex};
-use memex_backend::{SystemContext, Workspace, data::WorkspaceIconData};
-use memex_cef::UIThreadMarker;
-use raw_window_handle::HasWindowHandle;
+use memex_backend::{
+    WorkspaceListState, WorkspaceState,
+    data::{AppPath, WorkspaceIconData, create_workspace},
+};
 use uuid::Uuid;
 
-pub struct WorkspaceList;
+pub struct WorkspaceList {
+    state: Entity<WorkspaceListState>,
+}
 
 impl WorkspaceList {
-    pub fn new() -> Self {
-        Self
+    pub fn new(cx: &mut App, state: Entity<WorkspaceListState>) -> Entity<Self> {
+        cx.new(|_| Self { state })
+    }
+
+    pub fn state(&self) -> &Entity<WorkspaceListState> {
+        &self.state
+    }
+
+    pub fn render_user_workspaces(&self, cx: &mut App) -> Vec<AnyElement> {
+        let mut children = Vec::new();
+
+        for (ix, id) in self.state.read(cx).order().iter().cloned().enumerate() {
+            let metadata = self.state.read(cx).list_metadata().get(&id).unwrap();
+            let list = self.state.clone();
+
+            children.push(
+                v_flex()
+                    .id(ix)
+                    .size_12()
+                    .when(self.state.read(cx).selected() == metadata.id(), |this| {
+                        this.bg(cx.theme().primary.alpha(0.2))
+                    })
+                    .rounded_xl()
+                    .justify_center()
+                    .text_center()
+                    .text_3xl()
+                    .child(WorkspaceIcon {
+                        list: list.clone(),
+                        workspace_id: id,
+                    })
+                    .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
+                        list.update(cx, |list, cx| list.open(window, cx, id));
+                    })
+                    .into_any_element(),
+            );
+        }
+
+        children
     }
 }
 
 impl Render for WorkspaceList {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
-        let system = cx.global::<SystemContext>();
-        let manager = system.workspace_manager().lock().unwrap();
+        let app = self.state.read(cx);
 
-        v_flex()
+        let element = v_flex()
             .id("workspace-list")
             .gap_2()
             .items_center()
@@ -32,97 +70,92 @@ impl Render for WorkspaceList {
                     .rounded_2xl()
                     .text_color(cx.theme().accent_foreground)
                     .when_else(
-                        manager.selected() == manager.home(),
+                        app.selected() == app.home(),
                         |this| this.bg(cx.theme().accent),
                         |this| this.bg(cx.theme().accent.alpha(0.4)),
                     )
                     .child(Icon::empty().path("icons/house.svg").large())
-                    .on_mouse_down(MouseButton::Left, |_event, window, cx| {
-                        let manager = cx.global::<SystemContext>().workspace_manager().clone();
-                        let window_handle = window.window_handle().unwrap().as_raw();
+                    .on_mouse_down(MouseButton::Left, {
+                        let list = self.state.clone();
 
-                        cx.spawn(move |_cx: &mut AsyncApp| async move {
-                            let mut manager = manager.lock().unwrap();
-                            let id = manager.home();
-                            let utm = UIThreadMarker::new().unwrap();
-
-                            manager.open(utm, id, window_handle).await.unwrap();
-                        })
-                        .detach();
+                        move |_event, window, cx| {
+                            list.update(cx, |list, cx| list.open(window, cx, list.home()));
+                        }
                     }),
-            )
-            .child(div().w_3_4().border_1().border_color(cx.theme().border))
-            // User workspaces
-            .children(manager.order().iter().enumerate().map(|(ix, id)| {
-                let id = *id;
-                let list = manager.list_metadata();
-                let metadata = list.get(&id).unwrap();
+            );
 
-                v_flex()
-                    .id(ix)
-                    .size_12()
-                    .when(manager.selected() == metadata.id(), |this| {
-                        this.bg(cx.theme().primary.alpha(0.2))
-                    })
-                    .rounded_xl()
-                    .justify_center()
-                    .text_center()
-                    .text_3xl()
-                    .child(WorkspaceIcon(id))
-                    .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-                        let manager = cx.global::<SystemContext>().workspace_manager().clone();
-                        let window_handle = window.window_handle().unwrap().as_raw();
+        let user_workspaces = self.render_user_workspaces(cx);
 
-                        cx.spawn(move |_cx: &mut AsyncApp| async move {
-                            let mut manager = manager.lock().unwrap();
-                            let utm = UIThreadMarker::new().unwrap();
+        if user_workspaces.is_empty() {
+            element
+        } else {
+            element
+                .child(div().w_3_4().border_1().border_color(cx.theme().border))
+                // User workspaces
+                .children(user_workspaces)
+                // Workspace addition button
+                .child(
+                    v_flex()
+                        .justify_center()
+                        .items_center()
+                        .child(Icon::new(IconName::Plus))
+                        .on_mouse_down(MouseButton::Left, {
+                            let list = self.state.clone();
 
-                            manager.open(utm, id, window_handle).await.unwrap();
-                        })
-                        .detach();
-                    })
-            }))
-            // Workspace addition button
-            .child(
-                v_flex()
-                    .justify_center()
-                    .items_center()
-                    .child(Icon::new(IconName::Plus))
-                    .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                        let system = cx.global::<SystemContext>().clone();
-                        let manager = system.workspace_manager().clone();
+                            move |_event, window, cx| {
+                                let path = AppPath::global(cx).clone();
+                                let list = list.clone();
 
-                        cx.spawn(move |_cx: &mut AsyncApp| async move {
-                            let mut manager = manager.lock().unwrap();
-                            let workspace = Workspace::new(
-                                system,
-                                Default::default(),
-                                "New workspace".to_owned(),
-                                Default::default(),
-                            )
-                            .await
-                            .expect("新しいワークスペースの作成に失敗しました。");
+                                window
+                                    .spawn(cx, async move |cx| {
+                                        let data = create_workspace(
+                                            &path,
+                                            Uuid::new_v4(),
+                                            "New workspace".to_owned(),
+                                        )
+                                        .await
+                                        .expect("ワークスペースのデータの作成に失敗しました。");
 
-                            manager
-                                .add(workspace)
-                                .expect("ワークスペースの追加に失敗しました。");
-                        })
-                        .detach();
-                    }),
-            )
+                                        list.update_in(cx, move |list, window, cx| {
+                                            let rect = list.layout_state.read(cx).view_rect(window);
+                                            let workspace = WorkspaceState::new(
+                                                window,
+                                                cx,
+                                                rect,
+                                                data,
+                                                Vec::new(),
+                                            )
+                                            .expect("ワークスペースの作成に失敗しました。");
+
+                                            list.add(cx, workspace).unwrap();
+                                        })
+                                        .unwrap();
+                                    })
+                                    .detach();
+                            }
+                        }),
+                )
+        }
     }
 }
 
 #[derive(IntoElement)]
-struct WorkspaceIcon(Uuid);
+struct WorkspaceIcon {
+    list: Entity<WorkspaceListState>,
+    workspace_id: Uuid,
+}
 
 impl RenderOnce for WorkspaceIcon {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let system = cx.global::<SystemContext>();
-        let manager = system.workspace_manager().lock().unwrap();
-        let metadata = manager.list_metadata().get(&self.0).unwrap();
+        let icon = self
+            .list
+            .read(cx)
+            .list_metadata()
+            .get(&self.workspace_id)
+            .unwrap()
+            .icon();
 
-        match metadata.icon() {
+        match icon {
             WorkspaceIconData::Default => v_flex()
                 .justify_center()
                 .items_center()

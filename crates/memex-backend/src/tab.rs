@@ -1,13 +1,11 @@
 use std::{ops::Deref, path::PathBuf};
 
-use memex_cef::{Browser, Profile, UIThreadMarker};
+use gpui::{App, AppContext, Entity};
+use memex_cef::{Browser, Profile, UIThreadMarker, utils::Rect};
 use raw_window_handle::RawWindowHandle;
 use uuid::Uuid;
 
-use crate::{
-    SystemContext,
-    data::{TabData, TabLocationData},
-};
+use crate::data::{TabData, TabLocationData};
 
 pub struct Tab {
     pub(crate) id: Uuid,
@@ -15,23 +13,26 @@ pub struct Tab {
 }
 
 impl Tab {
-    pub async fn new(
-        id: Uuid,
-        cx: SystemContext,
-        mut profile: Profile,
+    pub fn new(
+        cx: &mut App,
         window: RawWindowHandle,
+        rect: Rect,
+        id: Uuid,
+        mut profile: Profile,
         location: TabLocationData,
-    ) -> anyhow::Result<Self> {
+    ) -> anyhow::Result<Entity<Self>> {
         let url = match location {
             TabLocationData::WebPage { url } => url,
             TabLocationData::FileViewer { .. } => unimplemented!(),
             TabLocationData::NativeHomePage => unimplemented!(),
         };
+        let browser = Browser::new(&mut profile, window, &url, rect)?;
 
-        Ok(Self {
-            id,
-            browser: Browser::new(cx.cef().clone(), &mut profile, window, &url).await?,
-        })
+        Ok(cx.new(|_| Self { id, browser }))
+    }
+
+    pub fn on_resize(&self, rect: Rect) {
+        self.browser.on_resize(rect);
     }
 
     pub fn is_native_homepage(&self) -> bool {
@@ -41,6 +42,10 @@ impl Tab {
 
     pub fn title(&self) -> String {
         self.browser.title().unwrap()
+    }
+
+    pub fn on_resize_view(&self, rect: Rect) {
+        self.browser.on_resize(rect);
     }
 
     pub(crate) fn set_hidden(&self, utm: UIThreadMarker, hidden: bool) {

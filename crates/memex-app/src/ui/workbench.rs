@@ -1,37 +1,46 @@
-use gpui::{Entity, Window, div, prelude::*, px};
+use gpui::{App, Entity, Window, div, prelude::*};
 use gpui_component::{
     ActiveTheme, h_flex,
     resizable::{ResizableState, h_resizable, resizable_panel},
     v_flex,
 };
-use memex_backend::SystemContext;
+use memex_backend::LayoutState;
 
-use crate::ui::{Controller, Exproler, TOP_TAB_BAR_HEIGHT, WORKSPACE_LIST_WIDTH, WorkspaceList};
+use crate::ui::{Exproler, TitleBar, WorkspaceList};
 
-pub struct MemexBrowser {
+/// ワークスペースを開いている前提のView。
+/// ワークスペース一覧を読み込み終わった後にしか作れない。
+pub struct Workbench {
+    layout_state: Entity<LayoutState>,
+
     workspace_list: Entity<WorkspaceList>,
-    controller: Entity<Controller>,
+    title_bar: Entity<TitleBar>,
     exproler: Entity<Exproler>,
 
     workspace_box_state: Entity<ResizableState>,
 }
 
-impl MemexBrowser {
-    pub fn new(window: &mut Window, cx: &mut Context<'_, Self>) -> Self {
-        Self {
-            workspace_list: cx.new(|_cx| WorkspaceList::new()),
-            controller: cx.new(|cx| Controller::new(window, cx)),
-            exproler: cx.new(|cx| Exproler::new(cx)),
+impl Workbench {
+    pub fn new(
+        cx: &mut App,
+        layout_state: Entity<LayoutState>,
+        workspace_list: Entity<WorkspaceList>,
+        title_bar: Entity<TitleBar>,
+    ) -> Entity<Self> {
+        cx.new(move |cx| Self {
+            layout_state,
+            workspace_list,
+            title_bar,
+            exproler: Exproler::new(cx),
 
             workspace_box_state: ResizableState::new(cx),
-        }
+        })
     }
 }
 
-impl Render for MemexBrowser {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let system = cx.global::<SystemContext>();
-        let workspace_manager = system.workspace_manager().lock().unwrap();
+impl Render for Workbench {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<'_, Self>) -> impl IntoElement {
+        let layout_state = self.layout_state.read(cx);
 
         h_flex()
             .id("window-body")
@@ -39,9 +48,9 @@ impl Render for MemexBrowser {
             .child(
                 v_flex()
                     .id("workspace-list")
-                    .w(WORKSPACE_LIST_WIDTH)
+                    .w(layout_state.workspace_list_width)
                     .h_full()
-                    .mt(TOP_TAB_BAR_HEIGHT)
+                    .mt(layout_state.top_tab_bar_height)
                     .pt_4()
                     .px_2()
                     .items_center()
@@ -58,15 +67,18 @@ impl Render for MemexBrowser {
                             .w_full()
                             .border_b_1()
                             .border_color(cx.theme().border)
-                            .child(self.controller.clone()),
+                            .child(self.title_bar.clone()),
                     )
                     .child(
                         h_resizable("workspace", self.workspace_box_state.clone())
                             .when(
-                                workspace_manager.selected() != workspace_manager.home(),
+                                {
+                                    let list_state = self.workspace_list.read(cx).state().read(cx);
+                                    list_state.selected() != list_state.home()
+                                },
                                 |this| {
                                     this.child(
-                                        resizable_panel().size(px(200.)).child(
+                                        resizable_panel().size(layout_state.exproler_width).child(
                                             div()
                                                 .size_full()
                                                 .border_r_1()
