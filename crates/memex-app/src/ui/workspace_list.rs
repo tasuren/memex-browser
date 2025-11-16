@@ -1,18 +1,26 @@
 use gpui::{AnyElement, App, Entity, MouseButton, ReadGlobal, Window, div, prelude::*};
 use gpui_component::{ActiveTheme, Icon, IconName, Sizable, v_flex};
 use memex_backend::{
-    WorkspaceListState, WorkspaceState,
+    LayoutState, WorkspaceListState, WorkspaceState,
     data::{AppPath, WorkspaceIconData, create_workspace},
 };
 use uuid::Uuid;
 
 pub struct WorkspaceList {
     state: Entity<WorkspaceListState>,
+    layout_state: Entity<LayoutState>,
 }
 
 impl WorkspaceList {
-    pub fn new(cx: &mut App, state: Entity<WorkspaceListState>) -> Entity<Self> {
-        cx.new(|_| Self { state })
+    pub fn new(
+        cx: &mut App,
+        state: Entity<WorkspaceListState>,
+        layout_state: Entity<LayoutState>,
+    ) -> Entity<Self> {
+        cx.new(|_| Self {
+            state,
+            layout_state,
+        })
     }
 
     pub fn state(&self) -> &Entity<WorkspaceListState> {
@@ -86,56 +94,53 @@ impl Render for WorkspaceList {
 
         let user_workspaces = self.render_user_workspaces(cx);
 
-        if user_workspaces.is_empty() {
+        let element = if user_workspaces.is_empty() {
             element
         } else {
             element
                 .child(div().w_3_4().border_1().border_color(cx.theme().border))
                 // User workspaces
                 .children(user_workspaces)
-                // Workspace addition button
-                .child(
-                    v_flex()
-                        .justify_center()
-                        .items_center()
-                        .child(Icon::new(IconName::Plus))
-                        .on_mouse_down(MouseButton::Left, {
-                            let list = self.state.clone();
+        };
 
-                            move |_event, window, cx| {
-                                let path = AppPath::global(cx).clone();
-                                let list = list.clone();
+        // Workspace addition button
+        element.child(
+            v_flex()
+                .size(self.layout_state.read(cx).exproler_width)
+                .justify_center()
+                .items_center()
+                .child(Icon::new(IconName::Plus).size_8())
+                .on_mouse_down(MouseButton::Left, {
+                    let list = self.state.clone();
 
-                                window
-                                    .spawn(cx, async move |cx| {
-                                        let data = create_workspace(
-                                            &path,
-                                            Uuid::new_v4(),
-                                            "New workspace".to_owned(),
-                                        )
-                                        .await
-                                        .expect("ワークスペースのデータの作成に失敗しました。");
+                    move |_event, window, cx| {
+                        let path = AppPath::global(cx).clone();
+                        let list = list.clone();
 
-                                        list.update_in(cx, move |list, window, cx| {
-                                            let rect = list.layout_state.read(cx).view_rect(window);
-                                            let workspace = WorkspaceState::new(
-                                                window,
-                                                cx,
-                                                rect,
-                                                data,
-                                                Vec::new(),
-                                            )
+                        window
+                            .spawn(cx, async move |cx| {
+                                let data = create_workspace(
+                                    &path,
+                                    Uuid::new_v4(),
+                                    "New workspace".to_owned(),
+                                )
+                                .await
+                                .expect("ワークスペースのデータの作成に失敗しました。");
+
+                                list.update_in(cx, move |list, window, cx| {
+                                    let rect = list.layout_state.read(cx).view_rect(window);
+                                    let workspace =
+                                        WorkspaceState::new(window, cx, rect, data, Vec::new())
                                             .expect("ワークスペースの作成に失敗しました。");
 
-                                            list.add(cx, workspace).unwrap();
-                                        })
-                                        .unwrap();
-                                    })
-                                    .detach();
-                            }
-                        }),
-                )
-        }
+                                    list.add(cx, workspace).unwrap();
+                                })
+                                .unwrap();
+                            })
+                            .detach();
+                    }
+                }),
+        )
     }
 }
 
