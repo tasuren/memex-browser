@@ -87,7 +87,7 @@ impl Render for TabBar {
                         move |_event, window, cx| {
                             workspace.update(cx, |workspace, cx| {
                                 workspace
-                                    .create_tab(window, cx)
+                                    .create_tab(window, cx, true)
                                     .expect("新しいタブを開くのに失敗しました。");
 
                                 cx.notify();

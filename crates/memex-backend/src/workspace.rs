@@ -61,7 +61,7 @@ impl WorkspaceState {
             tabs.insert(id, tab);
         }
 
-        Ok(cx.new(|cx| Self {
+        Ok(cx.new(|_cx| Self {
             workspace_list,
             profile,
             id: data.id,
@@ -112,7 +112,12 @@ impl WorkspaceState {
         self.name = name;
     }
 
-    pub fn create_tab(&mut self, window: &mut Window, cx: &mut App) -> anyhow::Result<()> {
+    pub fn create_tab(
+        &mut self,
+        window: &mut Window,
+        cx: &mut App,
+        with_open: bool,
+    ) -> anyhow::Result<()> {
         let window_handle = window.window_handle().unwrap().as_raw();
         let rect = self
             .workspace_list
@@ -130,7 +135,15 @@ impl WorkspaceState {
             self.profile.clone(),
             location,
         )?;
+
         let id = tab.read(cx).id;
+        if with_open {
+            self.select(cx, id);
+        } else {
+            tab.update(cx, |tab, cx| {
+                tab.set_hidden(cx.utm(), true);
+            });
+        }
 
         self.tabs.insert(id, tab);
         self.tab_order.push(id);

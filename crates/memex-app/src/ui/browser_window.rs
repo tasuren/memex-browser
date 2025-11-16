@@ -79,8 +79,11 @@ impl BrowserWindow {
                                 home_files,
                             )
                             .unwrap();
-                            let workspace_list =
-                                WorkspaceList::new(cx, workspace_list_state.clone());
+                            let workspace_list = WorkspaceList::new(
+                                cx,
+                                workspace_list_state.clone(),
+                                layout_state.clone(),
+                            );
 
                             let current = workspace_list_state.read(cx).current().clone();
                             let title_bar =
