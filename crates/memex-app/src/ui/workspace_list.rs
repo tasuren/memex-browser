@@ -1,4 +1,4 @@
-use gpui::{AnyElement, App, Entity, MouseButton, ReadGlobal, Window, div, prelude::*};
+use gpui::{AnyElement, App, Entity, MouseButton, Pixels, ReadGlobal, Window, div, prelude::*};
 use gpui_component::{ActiveTheme, Icon, IconName, Sizable, v_flex};
 use memex_backend::{
     LayoutState, WorkspaceListState, WorkspaceState,
@@ -111,45 +111,52 @@ impl Render for WorkspaceList {
         };
 
         // Workspace addition button
-        element.child(
-            v_flex()
-                .w(self.layout_state.read(cx).workspace_list_width)
-                .h_full()
-                .justify_center()
-                .items_center()
-                .child(Icon::new(IconName::Plus).size_8())
-                .on_mouse_down(MouseButton::Left, {
-                    let list = self.state.clone();
+        element.child(WorkspaceAddButton {
+            list: self.state.clone(),
+            workspace_list_width: self.layout_state.read(cx).workspace_list_width,
+        })
+    }
+}
 
-                    move |_event, window, cx| {
-                        let path = AppPath::global(cx).clone();
-                        let list = list.clone();
+#[derive(IntoElement)]
+struct WorkspaceAddButton {
+    list: Entity<WorkspaceListState>,
+    workspace_list_width: Pixels,
+}
 
-                        window
-                            .spawn(cx, async move |cx| {
-                                let data = create_workspace(
-                                    &path,
-                                    Uuid::new_v4(),
-                                    "New workspace".to_owned(),
-                                )
+impl RenderOnce for WorkspaceAddButton {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+        let list = self.list;
+
+        v_flex()
+            .w(self.workspace_list_width)
+            .h_full()
+            .justify_center()
+            .items_center()
+            .child(Icon::new(IconName::Plus).size_8())
+            .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
+                let path = AppPath::global(cx).clone();
+                let list = list.clone();
+
+                window
+                    .spawn(cx, async move |cx| {
+                        let data =
+                            create_workspace(&path, Uuid::new_v4(), "New workspace".to_owned())
                                 .await
                                 .expect("ワークスペースのデータの作成に失敗しました。");
 
-                                list.update_in(cx, move |list, window, cx| {
-                                    let rect = list.layout_state.read(cx).view_rect(window);
-                                    let workspace =
-                                        WorkspaceState::new(window, cx, rect, data, Vec::new())
-                                            .expect("ワークスペースの作成に失敗しました。");
+                        list.update_in(cx, move |list, window, cx| {
+                            let rect = list.layout_state.read(cx).view_rect(window);
+                            let workspace = WorkspaceState::new(window, cx, rect, data, Vec::new())
+                                .expect("ワークスペースの作成に失敗しました。");
 
-                                    list.add(cx, workspace).unwrap();
-                                    cx.notify();
-                                })
-                                .unwrap();
-                            })
-                            .detach();
-                    }
-                }),
-        )
+                            list.add(cx, workspace).unwrap();
+                            cx.notify();
+                        })
+                        .unwrap();
+                    })
+                    .detach();
+            })
     }
 }
 
