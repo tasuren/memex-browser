@@ -90,6 +90,15 @@ impl Render for WorkspaceList {
                             list.update(cx, |list, cx| list.open(window, cx, list.home()));
                         }
                     }),
+            )
+            .child(
+                div()
+                    .mx_1()
+                    .my_2()
+                    .w_3_4()
+                    .h_0()
+                    .border_1()
+                    .border_color(cx.theme().border),
             );
 
         let user_workspaces = self.render_user_workspaces(cx);
@@ -97,16 +106,15 @@ impl Render for WorkspaceList {
         let element = if user_workspaces.is_empty() {
             element
         } else {
-            element
-                .child(div().w_3_4().border_1().border_color(cx.theme().border))
-                // User workspaces
-                .children(user_workspaces)
+            // User workspaces
+            element.children(user_workspaces)
         };
 
         // Workspace addition button
         element.child(
             v_flex()
-                .size(self.layout_state.read(cx).exproler_width)
+                .w(self.layout_state.read(cx).workspace_list_width)
+                .h_full()
                 .justify_center()
                 .items_center()
                 .child(Icon::new(IconName::Plus).size_8())
@@ -134,6 +142,7 @@ impl Render for WorkspaceList {
                                             .expect("ワークスペースの作成に失敗しました。");
 
                                     list.add(cx, workspace).unwrap();
+                                    cx.notify();
                                 })
                                 .unwrap();
                             })
