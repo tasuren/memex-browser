@@ -52,6 +52,7 @@ impl WorkspaceList {
                     })
                     .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                         list.update(cx, |list, cx| list.open(window, cx, id));
+                        cx.notify(list.entity_id());
                     })
                     .into_any_element(),
             );
@@ -89,6 +90,7 @@ impl Render for WorkspaceList {
 
                         move |_event, window, cx| {
                             list.update(cx, |list, cx| list.open(window, cx, list.home()));
+                            cx.notify(list.entity_id());
                         }
                     }),
             )

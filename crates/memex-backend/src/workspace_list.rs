@@ -118,6 +118,7 @@ impl WorkspaceListState {
                             let workspace = WorkspaceState::new(window, cx, rect, data, files)
                                 .expect("ワークスペースの準備に失敗しました。");
                             list.loaded.insert(id, workspace);
+                            cx.notify();
                         })
                         .unwrap();
                 })
