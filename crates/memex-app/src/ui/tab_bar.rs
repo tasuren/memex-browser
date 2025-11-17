@@ -1,4 +1,4 @@
-use gpui::{App, Entity, MouseButton, Window, actions, prelude::*, px};
+use gpui::{App, Div, Entity, MouseButton, Stateful, Window, actions, prelude::*, px};
 use gpui_component::*;
 use memex_backend::{LayoutState, WorkspaceState};
 
@@ -20,6 +20,46 @@ impl TabBar {
             workspace,
         })
     }
+
+    fn render_tabs(&self, cx: &mut App) -> impl Iterator<Item = Stateful<Div>> {
+        let tab_order = self.workspace.read(cx).tab_order();
+
+        tab_order.iter().cloned().enumerate().map(|(ix, id)| {
+            let tab = self.workspace.read(cx).get_tab(id).unwrap().read(cx);
+
+            h_flex()
+                .id(ix)
+                .justify_between()
+                .items_center()
+                .w_48()
+                .h_full()
+                .rounded_t_xl()
+                .px_4()
+                .when_else(
+                    self.workspace.read(cx).selected_tab() == Some(id),
+                    |this| this.bg(cx.theme().background),
+                    |this| {
+                        this.bg(cx.theme().title_bar).hover(|style| {
+                            style
+                                .h_5_6()
+                                .rounded_md()
+                                .bg(cx.theme().foreground.alpha(0.3))
+                        })
+                    },
+                )
+                .child(h_flex().justify_start().items_center().child(tab.title()))
+                .child(Icon::empty().path("icons/x.svg"))
+                .on_mouse_up(MouseButton::Left, {
+                    let workspace = self.workspace.clone();
+
+                    move |_event, _window, cx| {
+                        cx.update_entity(&workspace, |workspace, cx| {
+                            workspace.select(cx, id);
+                        });
+                    }
+                })
+        })
+    }
 }
 
 impl Render for TabBar {
@@ -32,49 +72,7 @@ impl Render for TabBar {
             .gap_1()
             .pt(px(6.))
             .px_2()
-            .children(
-                self.workspace
-                    .read(cx)
-                    .tab_order()
-                    .iter()
-                    .cloned()
-                    .enumerate()
-                    .map(|(ix, id)| {
-                        let tab = self.workspace.read(cx).get_tab(id).unwrap().read(cx);
-
-                        h_flex()
-                            .id(ix)
-                            .justify_between()
-                            .items_center()
-                            .w_48()
-                            .h_full()
-                            .rounded_t_xl()
-                            .px_4()
-                            .when_else(
-                                self.workspace.read(cx).selected_tab() == Some(id),
-                                |this| this.bg(cx.theme().background),
-                                |this| {
-                                    this.bg(cx.theme().title_bar).hover(|style| {
-                                        style
-                                            .h_5_6()
-                                            .rounded_md()
-                                            .bg(cx.theme().foreground.alpha(0.3))
-                                    })
-                                },
-                            )
-                            .child(h_flex().justify_start().items_center().child(tab.title()))
-                            .child(Icon::empty().path("icons/x.svg"))
-                            .on_mouse_up(MouseButton::Left, {
-                                let workspace = self.workspace.clone();
-
-                                move |_event, _window, cx| {
-                                    cx.update_entity(&workspace, |workspace, cx| {
-                                        workspace.select(cx, id);
-                                    });
-                                }
-                            })
-                    }),
-            )
+            .children(self.render_tabs(cx))
             .child(
                 v_flex()
                     .size(self.layout_state.read(cx).top_tab_bar_height)
