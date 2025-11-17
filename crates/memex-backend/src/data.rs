@@ -231,7 +231,7 @@ mod workspace {
 mod models {
     use std::{collections::HashMap, path::PathBuf};
 
-    use gpui::{App, Entity};
+    use gpui::App;
     use serde::{Deserialize, Serialize};
     use uuid::Uuid;
 
