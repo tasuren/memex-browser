@@ -92,6 +92,8 @@ impl BrowserWindow {
                             let workbench =
                                 Workbench::new(cx, layout_state, workspace_list, title_bar);
                             browser_window.current = CurrentView::Workbench(workbench);
+
+                            cx.notify();
                         })
                         .unwrap();
                 }
