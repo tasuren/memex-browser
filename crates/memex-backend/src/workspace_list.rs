@@ -98,10 +98,21 @@ impl WorkspaceListState {
         )
     }
 
+    fn show_workspace_tabs(&self, cx: &mut App, id: Uuid) {
+        for workspace in self.loaded.values() {
+            workspace.update(cx, |workspace, cx| {
+                let hidden = workspace.id() != id;
+                workspace.set_hidden(cx, hidden);
+            });
+        }
+    }
+
     pub fn open(&mut self, window: &mut Window, cx: &mut App, id: Uuid) {
         self.selected = id;
 
-        if !self.loaded.contains_key(&id) {
+        if self.loaded.contains_key(&id) {
+            self.show_workspace_tabs(cx, id);
+        } else {
             // まだロードしていないなら、ロードする。
             let path = AppPath::global(cx).clone();
             let workspace_list = self.weak_self.clone();
@@ -118,6 +129,8 @@ impl WorkspaceListState {
                             let workspace = WorkspaceState::new(window, cx, rect, data, files)
                                 .expect("ワークスペースの準備に失敗しました。");
                             list.loaded.insert(id, workspace);
+                            list.show_workspace_tabs(cx, id);
+
                             cx.notify();
                         })
                         .unwrap();

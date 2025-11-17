@@ -164,6 +164,21 @@ impl WorkspaceState {
         Ok(())
     }
 
+    pub fn set_hidden(&self, cx: &mut App, mut hidden: bool) {
+        let utm = cx.utm();
+
+        for (key, tab) in self.tabs.iter() {
+            let tab = tab.read(cx);
+
+            if hidden {
+                tab.set_hidden(utm, true);
+            } else {
+                hidden = self.selected.is_some_and(|selected| selected == *key);
+                tab.set_hidden(utm, !hidden);
+            }
+        }
+    }
+
     pub async fn destroy(mut self, cx: &mut App, utm: UIThreadMarker) -> anyhow::Result<()> {
         for (id, tab) in self.tabs.drain() {
             tab.update(cx, |tab: &mut TabState, _cx| tab.close(utm))
