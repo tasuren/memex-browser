@@ -121,7 +121,7 @@ impl WorkspaceListState {
         let id = {
             let workspace = workspace.read(cx);
             anyhow::ensure!(
-                self.order.contains(&workspace.id),
+                !self.order.contains(&workspace.id),
                 "既にそのワークスペースは追加されています。"
             );
 
