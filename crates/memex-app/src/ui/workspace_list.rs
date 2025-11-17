@@ -44,6 +44,7 @@ impl WorkspaceList {
                     .rounded_xl()
                     .justify_center()
                     .text_center()
+                    .gap_2()
                     .text_3xl()
                     .child(WorkspaceIcon {
                         list: list.clone(),
@@ -147,10 +148,13 @@ impl RenderOnce for WorkspaceAddButton {
 
                         list.update_in(cx, move |list, window, cx| {
                             let rect = list.layout_state.read(cx).view_rect(window);
+                            let id = data.id;
                             let workspace = WorkspaceState::new(window, cx, rect, data, Vec::new())
                                 .expect("ワークスペースの作成に失敗しました。");
 
                             list.add(cx, workspace).unwrap();
+                            list.open(window, cx, id);
+
                             cx.notify();
                         })
                         .unwrap();
