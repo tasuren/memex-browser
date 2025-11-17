@@ -27,8 +27,8 @@ impl WorkspaceListState {
         layout_state: Entity<LayoutState>,
         data: WorkspaceListData,
         workspaces: HashMap<Uuid, WorkspaceMetadata>,
-        home: WorkspaceData,
-        home_files: Vec<FileSystemItem>,
+        selected_workspace: WorkspaceData,
+        selected_workspace_fields: Vec<FileSystemItem>,
     ) -> anyhow::Result<Entity<Self>> {
         anyhow::ensure!(
             !workspaces.is_empty(),
@@ -38,6 +38,14 @@ impl WorkspaceListState {
         anyhow::ensure!(
             workspaces.contains_key(&data.home),
             "セーブデータにホームワークスペースがありませんでした。追加してください。"
+        );
+        anyhow::ensure!(
+            selected_workspace.id == data.selected,
+            "選択済みのワークスペースのデータが渡されませんでした。"
+        );
+        anyhow::ensure!(
+            selected_workspace.id == data.selected,
+            "選択済みのワークスペースのデータが渡されませんでした。"
         );
 
         let rect = layout_state.read(cx).view_rect(window);
@@ -52,9 +60,17 @@ impl WorkspaceListState {
             selected: data.selected,
         });
 
+        // 前回選択されていたワークスペースを読み込んでおく。
         list.update(cx, |list, cx| {
-            let workspace = WorkspaceState::new(window, cx, rect, home, home_files).unwrap();
-            list.loaded.insert(data.home, workspace);
+            let workspace = WorkspaceState::new(
+                window,
+                cx,
+                rect,
+                selected_workspace,
+                selected_workspace_fields,
+            )
+            .unwrap();
+            list.loaded.insert(data.selected, workspace);
         });
 
         Ok(list)

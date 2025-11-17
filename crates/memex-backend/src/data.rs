@@ -25,12 +25,23 @@ mod workspace {
             Ok(serde_json::from_slice(&raw)?)
         } else {
             let data = WorkspaceListData::default();
-            let raw = serde_json::to_vec(&data)
-                .context("ワークスペースマネージャのセーブデータのJSON化に失敗しました。")?;
+            let raw = serde_json::to_vec(&data)?;
             fs::write(path, raw).await?;
 
             Ok(data)
         }
+    }
+
+    pub async fn save_workspace_list(
+        path: &AppPath,
+        data: &WorkspaceListData,
+    ) -> anyhow::Result<()> {
+        let path = path.workspaces().join("list.json");
+
+        let raw = serde_json::to_vec(&data)?;
+        fs::write(path, raw).await?;
+
+        Ok(())
     }
 
     pub struct WorkspaceMetadata {
@@ -224,13 +235,23 @@ mod models {
     use serde::{Deserialize, Serialize};
     use uuid::Uuid;
 
-    use crate::{Tab, WorkspaceState};
+    use crate::{TabState, WorkspaceListState, WorkspaceState};
 
     #[derive(Debug, Default, Serialize, Deserialize)]
     pub struct WorkspaceListData {
         pub home: Uuid,
         pub order: Vec<Uuid>,
         pub selected: Uuid,
+    }
+
+    impl WorkspaceListData {
+        pub fn from_state(list: &WorkspaceListState) -> Self {
+            Self {
+                home: list.home(),
+                order: list.order().clone(),
+                selected: list.selected(),
+            }
+        }
     }
 
     #[derive(Debug, Serialize, Deserialize)]
@@ -240,9 +261,7 @@ mod models {
     }
 
     impl TabData {
-        pub fn from_entity(cx: &App, tab: &Entity<Tab>) -> Self {
-            let tab = tab.read(cx);
-
+        pub fn from_state(tab: &TabState) -> Self {
             Self {
                 id: tab.id,
                 location: TabLocationData::WebPage {
@@ -293,9 +312,7 @@ mod models {
             }
         }
 
-        pub fn from_entity(&self, cx: &App, workspace: &Entity<WorkspaceState>) -> Self {
-            let workspace = workspace.read(cx);
-
+        pub fn from_state(&self, cx: &mut App, workspace: &WorkspaceState) -> Self {
             WorkspaceData {
                 id: workspace.id,
                 name: workspace.name.clone(),
@@ -303,7 +320,7 @@ mod models {
                 tabs: workspace
                     .tabs
                     .iter()
-                    .map(|(id, tab)| (*id, TabData::from_entity(cx, tab)))
+                    .map(|(id, tab)| (*id, TabData::from_state(tab.read(cx))))
                     .collect(),
                 tab_order: workspace.tab_order.clone(),
                 selected: workspace.selected.clone(),

@@ -2,7 +2,7 @@ use gpui::{AnyElement, App, Entity, MouseButton, Pixels, ReadGlobal, Window, div
 use gpui_component::{ActiveTheme, Icon, IconName, Sizable, v_flex};
 use memex_backend::{
     LayoutState, WorkspaceListState, WorkspaceState,
-    data::{AppPath, WorkspaceIconData, create_workspace},
+    data::{AppPath, WorkspaceIconData, WorkspaceListData, create_workspace, save_workspace_list},
 };
 use uuid::Uuid;
 
@@ -154,6 +154,12 @@ impl RenderOnce for WorkspaceAddButton {
 
                             list.add(cx, workspace).unwrap();
                             list.open(window, cx, id);
+
+                            let data = WorkspaceListData::from_state(list);
+                            cx.background_spawn(async move {
+                                save_workspace_list(&path, &data).await.unwrap();
+                            })
+                            .detach();
 
                             cx.notify();
                         })

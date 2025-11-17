@@ -7,12 +7,12 @@ use uuid::Uuid;
 
 use crate::data::{TabData, TabLocationData};
 
-pub struct Tab {
+pub struct TabState {
     pub(crate) id: Uuid,
     pub(crate) browser: Browser,
 }
 
-impl Tab {
+impl TabState {
     pub fn new(
         cx: &mut App,
         window: RawWindowHandle,
@@ -65,7 +65,7 @@ impl Tab {
     }
 }
 
-impl Deref for Tab {
+impl Deref for TabState {
     type Target = Browser;
 
     fn deref(&self) -> &Self::Target {

@@ -45,7 +45,7 @@ impl BrowserWindow {
                         .expect("ワークスペースのリストの読み込みに失敗しました。");
 
                     // もしワークスペースがまだ一つもないなら、最低限ホームが必要なので作成する。
-                    let (home, home_files) = if workspaces.is_empty() {
+                    let (selected, selected_files) = if workspaces.is_empty() {
                         let home =
                             create_workspace(&path, workspace_list_data.home, "Home".to_owned())
                                 .await
@@ -55,7 +55,7 @@ impl BrowserWindow {
 
                         (home, Vec::new())
                     } else {
-                        load_workspace(&path, workspace_list_data.home)
+                        load_workspace(&path, workspace_list_data.selected)
                             .await
                             .expect("ホームワークスペースの読み込みに失敗しました。")
                     };
@@ -75,8 +75,8 @@ impl BrowserWindow {
                                 layout_state.clone(),
                                 workspace_list_data,
                                 workspaces,
-                                home,
-                                home_files,
+                                selected,
+                                selected_files,
                             )
                             .unwrap();
                             let workspace_list = WorkspaceList::new(

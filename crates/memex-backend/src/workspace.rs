@@ -10,7 +10,7 @@ use crate::{
     OnlyUIThread, WorkspaceListState,
     data::{AppPath, TabLocationData, WorkspaceData, WorkspaceIconData, delete_workspace},
     os::file_system::FileSystemItem,
-    tab::Tab,
+    tab::TabState,
 };
 
 pub struct WorkspaceState {
@@ -20,7 +20,7 @@ pub struct WorkspaceState {
     pub(crate) id: Uuid,
     pub(crate) name: String,
     pub(crate) icon: WorkspaceIconData,
-    pub(crate) tabs: HashMap<Uuid, Entity<Tab>>,
+    pub(crate) tabs: HashMap<Uuid, Entity<TabState>>,
     pub(crate) tab_order: Vec<Uuid>,
     pub(crate) selected: Option<Uuid>,
 
@@ -44,7 +44,7 @@ impl WorkspaceState {
 
         // タブの復元。
         for (id, tab_data) in data.tabs.into_iter() {
-            let tab = Tab::new(
+            let tab = TabState::new(
                 cx,
                 window_handle,
                 rect.clone(),
@@ -104,7 +104,7 @@ impl WorkspaceState {
         &self.tab_order
     }
 
-    pub fn get_tab(&self, id: Uuid) -> Option<&Entity<Tab>> {
+    pub fn get_tab(&self, id: Uuid) -> Option<&Entity<TabState>> {
         self.tabs.get(&id)
     }
 
@@ -127,7 +127,7 @@ impl WorkspaceState {
             url: "https://www.google.com".to_owned(),
         };
 
-        let tab = Tab::new(
+        let tab = TabState::new(
             cx,
             window_handle,
             rect,
@@ -166,7 +166,7 @@ impl WorkspaceState {
 
     pub async fn destroy(mut self, cx: &mut App, utm: UIThreadMarker) -> anyhow::Result<()> {
         for (id, tab) in self.tabs.drain() {
-            tab.update(cx, |tab: &mut Tab, _cx| tab.close(utm))
+            tab.update(cx, |tab: &mut TabState, _cx| tab.close(utm))
                 .with_context(|| format!("Failed to close the tab {}.", id))?;
         }
 
