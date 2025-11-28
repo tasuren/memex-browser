@@ -60,3 +60,5 @@ try:
         run(is_release=args.release, lldb=args.lldb)
 except KeyboardInterrupt:
     exit(130)
+except subprocess.CalledProcessError as e:
+    logger.error("コマンドの実行がエラーで終了しました: %s", str(e))
