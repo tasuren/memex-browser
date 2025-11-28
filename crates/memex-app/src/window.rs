@@ -1,7 +1,7 @@
 use gpui::{App, Bounds, WindowBounds, WindowOptions, prelude::*, px, size};
 
 pub fn setup_window(cx: &mut App) -> anyhow::Result<()> {
-    let bounds = Bounds::centered(None, size(px(1400.), px(850.0)), cx);
+    let bounds = Bounds::centered(None, size(px(1300.), px(800.0)), cx);
 
     cx.open_window(
         WindowOptions {
