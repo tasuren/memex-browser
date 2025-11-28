@@ -6,7 +6,7 @@ use gpui_component::{
     input::{InputState, TextInput},
     v_flex,
 };
-use memex_backend::{LayoutState, WorkspaceState};
+use memex_backend::{LayoutState, WorkspaceListState, WorkspaceState};
 
 use crate::ui::{
     consts::{TOP_TAB_BAR_HEIGHT, URL_BAR_HEIGHT},
@@ -23,11 +23,26 @@ impl TitleBar {
         window: &mut gpui::Window,
         cx: &mut App,
         layout_state: Entity<LayoutState>,
+        workspace_list_state: Entity<WorkspaceListState>,
         workspace_state: Entity<WorkspaceState>,
     ) -> Entity<Self> {
-        cx.new(|cx| Self {
-            tabs: TabBar::new(cx, layout_state, workspace_state),
-            url: cx.new(|cx| InputState::new(window, cx).default_value("https://www.google.com/")),
+        cx.new(|cx: &mut Context<'_, _>| {
+            // ワークスペースが再読み込みされたら、タブバーも作り直す。
+            cx.observe(&workspace_list_state, {
+                let layout_state = layout_state.clone();
+
+                move |title_bar: &mut TitleBar, entity, cx: &mut Context<'_, _>| {
+                    let workspace = entity.read(cx).current().clone();
+                    title_bar.tabs = TabBar::new(cx, layout_state.clone(), workspace);
+                }
+            })
+            .detach();
+
+            Self {
+                tabs: TabBar::new(cx, layout_state, workspace_state),
+                url: cx
+                    .new(|cx| InputState::new(window, cx).default_value("https://www.google.com/")),
+            }
         })
     }
 }

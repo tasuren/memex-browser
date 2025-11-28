@@ -86,8 +86,13 @@ impl BrowserWindow {
                             );
 
                             let current = workspace_list_state.read(cx).current().clone();
-                            let title_bar =
-                                TitleBar::new(window, cx, layout_state.clone(), current);
+                            let title_bar = TitleBar::new(
+                                window,
+                                cx,
+                                layout_state.clone(),
+                                workspace_list_state.clone(),
+                                current,
+                            );
 
                             let workbench =
                                 Workbench::new(cx, layout_state, workspace_list, title_bar);
