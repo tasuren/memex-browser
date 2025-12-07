@@ -2,7 +2,10 @@ use gpui::{AnyElement, App, Entity, MouseButton, Pixels, ReadGlobal, Window, div
 use gpui_component::{ActiveTheme, Icon, IconName, Sizable, v_flex};
 use memex_backend::{
     LayoutState, WorkspaceListState, WorkspaceState,
-    data::{AppPath, WorkspaceIconData, WorkspaceListData, create_workspace, save_workspace_list},
+    data::{
+        AppPath, WorkspaceIconData, WorkspaceListData, create_workspace, load_workspace,
+        save_workspace_list,
+    },
 };
 use uuid::Uuid;
 
@@ -25,6 +28,40 @@ impl WorkspaceList {
 
     pub fn state(&self) -> &Entity<WorkspaceListState> {
         &self.state
+    }
+
+    fn open(list: Entity<WorkspaceListState>, window: &mut Window, cx: &mut App, id: Uuid) {
+        if list.read(cx).is_loaded(id) {
+            list.update(cx, |list, cx| {
+                list.select(cx, id).unwrap();
+                cx.notify();
+            });
+
+            return;
+        };
+
+        window
+            .spawn(cx, async move |cx| {
+                let path = cx
+                    .read_global(|path: &AppPath, _window, _cx| path.clone())
+                    .unwrap();
+                let (data, files) = load_workspace(&path, id)
+                    .await
+                    .expect("ロードに失敗しました。");
+
+                list.update_in(cx, move |list, window, cx| {
+                    let rect = list.layout_state.read(cx).view_rect(window);
+                    let state = WorkspaceState::new(window, cx, rect, data, files)
+                        .expect("ワークスペースの状態の作成に失敗しました。");
+
+                    list.load(cx, state);
+                    list.select(cx, id).unwrap();
+
+                    cx.notify();
+                })
+                .unwrap();
+            })
+            .detach();
     }
 
     pub fn render_user_workspaces(&self, cx: &mut App) -> Vec<AnyElement> {
@@ -51,8 +88,7 @@ impl WorkspaceList {
                         workspace_id: id,
                     })
                     .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-                        list.update(cx, |list, cx| list.open(window, cx, id));
-                        cx.notify(list.entity_id());
+                        Self::open(list.clone(), window, cx, id)
                     })
                     .into_any_element(),
             );
@@ -87,10 +123,10 @@ impl Render for WorkspaceList {
                     .child(Icon::empty().path("icons/house.svg").large())
                     .on_mouse_down(MouseButton::Left, {
                         let list = self.state.clone();
+                        let id = app.home();
 
                         move |_event, window, cx| {
-                            list.update(cx, |list, cx| list.open(window, cx, list.home()));
-                            cx.notify(list.entity_id());
+                            Self::open(list.clone(), window, cx, id);
                         }
                     }),
             )
@@ -155,7 +191,7 @@ impl RenderOnce for WorkspaceAddButton {
                                 .expect("ワークスペースの作成に失敗しました。");
 
                             list.add(cx, workspace).unwrap();
-                            list.open(window, cx, id);
+                            list.select(cx, id).unwrap();
 
                             let data = WorkspaceListData::from_state(list);
                             cx.background_spawn(async move {

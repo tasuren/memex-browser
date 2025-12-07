@@ -1,16 +1,15 @@
 use std::collections::HashMap;
 
-use gpui::{App, Entity, ReadGlobal, WeakEntity, Window, prelude::*};
+use gpui::{App, Entity, WeakEntity, Window, prelude::*};
 use uuid::Uuid;
 
 use crate::{
     LayoutState, WorkspaceState,
-    data::{AppPath, WorkspaceData, WorkspaceListData, WorkspaceMetadata, load_workspace},
+    data::{WorkspaceData, WorkspaceListData, WorkspaceMetadata},
     os::file_system::FileSystemItem,
 };
 
 pub struct WorkspaceListState {
-    weak_self: WeakEntity<Self>,
     pub layout_state: Entity<LayoutState>,
 
     home: Uuid,
@@ -49,8 +48,7 @@ impl WorkspaceListState {
         );
 
         let rect = layout_state.read(cx).view_rect(window);
-        let list = cx.new(|cx| Self {
-            weak_self: cx.weak_entity(),
+        let list = cx.new(|_cx| Self {
             layout_state,
 
             home: data.home,
@@ -107,40 +105,28 @@ impl WorkspaceListState {
         }
     }
 
-    pub fn open(&mut self, window: &mut Window, cx: &mut App, id: Uuid) {
+    pub fn select(&mut self, cx: &mut App, id: Uuid) -> anyhow::Result<()> {
         self.selected = id;
+        anyhow::ensure!(
+            self.loaded.contains_key(&id),
+            "そのワークスペースはまだロードされていません。"
+        );
 
-        if self.loaded.contains_key(&id) {
-            self.show_workspace_tabs(cx, id);
-        } else {
-            // まだロードしていないなら、ロードする。
-            let path = AppPath::global(cx).clone();
-            let workspace_list = self.weak_self.clone();
+        self.show_workspace_tabs(cx, id);
 
-            window
-                .spawn(cx, async move |cx| {
-                    let (data, files) = load_workspace(&path, id)
-                        .await
-                        .expect("ワークスペースの読み込みに失敗しました。");
-
-                    workspace_list
-                        .update_in(cx, move |list, window, cx| {
-                            let rect = list.layout_state.read(cx).view_rect(window);
-                            let workspace = WorkspaceState::new(window, cx, rect, data, files)
-                                .expect("ワークスペースの準備に失敗しました。");
-                            list.loaded.insert(id, workspace);
-                            list.show_workspace_tabs(cx, id);
-
-                            cx.notify();
-                        })
-                        .unwrap();
-                })
-                .detach();
-        };
+        Ok(())
     }
 
     pub fn get(&self, id: &Uuid) -> Option<&Entity<WorkspaceState>> {
         self.loaded.get(id)
+    }
+
+    pub fn is_loaded(&self, id: Uuid) -> bool {
+        self.loaded.contains_key(&id)
+    }
+
+    pub fn load(&mut self, cx: &mut Context<Self>, workspace: Entity<WorkspaceState>) {
+        self.loaded.insert(workspace.read(cx).id, workspace);
     }
 
     pub fn add(
