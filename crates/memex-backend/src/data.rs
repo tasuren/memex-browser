@@ -323,7 +323,7 @@ mod models {
                     .map(|(id, tab)| (*id, TabData::from_state(tab.read(cx))))
                     .collect(),
                 tab_order: workspace.tab_order.clone(),
-                selected: workspace.selected.clone(),
+                selected: workspace.selected,
             }
         }
     }

@@ -1,8 +1,5 @@
 pub mod application {
-    use std::{
-        ffi::CStr,
-        sync::{LazyLock, Mutex},
-    };
+    use std::sync::{LazyLock, Mutex};
 
     use objc2::{runtime::*, *};
     use objc2_app_kit::NSApplication;
@@ -19,15 +16,15 @@ pub mod application {
             let _ = objc2::ffi::class_addMethod(
                 app as *const _ as *mut _,
                 sel!(isHandlingSendEvent),
-                std::mem::transmute(is_handling_send_event as *const ()),
-                CStr::from_bytes_with_nul(b"B@:\0").unwrap().as_ptr(),
+                std::mem::transmute::<*const (), Imp>(is_handling_send_event as *const ()),
+                c"B@:".as_ptr(),
             );
 
             let _ = objc2::ffi::class_addMethod(
                 app as *const _ as *mut _,
                 sel!(setHandlingSendEvent:),
-                std::mem::transmute(set_handling_send_event as *const ()),
-                CStr::from_bytes_with_nul(b"v@:B\0").unwrap().as_ptr(),
+                std::mem::transmute::<*const (), Imp>(set_handling_send_event as *const ()),
+                c"v@:B".as_ptr(),
             );
         }
     }

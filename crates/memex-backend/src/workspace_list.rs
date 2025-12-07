@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use gpui::{App, Entity, WeakEntity, Window, prelude::*};
+use gpui::{App, Entity, Window, prelude::*};
 use uuid::Uuid;
 
 use crate::{

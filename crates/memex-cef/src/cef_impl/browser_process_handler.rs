@@ -28,6 +28,6 @@ impl cef::ImplBrowserProcessHandler for BrowserProcessHandlerService {
     }
 
     fn on_schedule_message_pump_work(&self, delay_ms: i64) {
-        let _ = self.pump_tx.send(PumpDelayMs(delay_ms as _));
+        _ = self.pump_tx.send(PumpDelayMs(delay_ms as _));
     }
 }

@@ -5,7 +5,7 @@ use memex_cef::CefContext;
 use crate::data::AppPath;
 
 pub async fn init_global_state(cx: &mut App, application_identifier: String) -> anyhow::Result<()> {
-    let cef = CefState::new(CefContext::new());
+    let cef = CefState::new(CefContext::default());
     let path = AppPath::new(application_identifier)
         .await
         .context("データの保存場所の用意に失敗しました。")?;

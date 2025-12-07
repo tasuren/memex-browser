@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 use anyhow::Context;
 use cef::{BrowserSettings, Client, RequestContext};
@@ -7,7 +7,7 @@ use crate::cef_impl::{
     client::ClientService, request_context_handler::RequestContextHandlerService,
 };
 
-pub type SharedBrowserSettings = Arc<BrowserSettings>;
+pub type SharedBrowserSettings = Rc<BrowserSettings>;
 
 #[derive(Clone)]
 pub struct Profile {
@@ -30,7 +30,7 @@ impl Profile {
         .context("Failed to prepare request context")?;
 
         Ok(Self {
-            browser_settings: Arc::new(BrowserSettings::default()),
+            browser_settings: Rc::new(BrowserSettings::default()),
             request_context,
             client: ClientService::create(),
         })
