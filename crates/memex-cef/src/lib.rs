@@ -4,6 +4,8 @@ pub use context::*;
 pub use event_loop::*;
 pub use helper::*;
 pub use profile::*;
+pub use rect::*;
+pub use session::*;
 
 mod bootstrap;
 mod browser;
@@ -12,4 +14,5 @@ mod context;
 mod event_loop;
 mod helper;
 mod profile;
-pub mod utils;
+mod rect;
+mod session;

@@ -4,11 +4,7 @@ use anyhow::Context;
 use cef::{CefStringUtf16, ImplBrowser, ImplBrowserHost, ImplFrame};
 use raw_window_handle::RawWindowHandle;
 
-use crate::{
-    UIThreadMarker,
-    profile::Profile,
-    utils::{self, Rect},
-};
+use crate::{BrowserSession, Rect, UIThreadMarker, profile::Profile};
 
 #[derive(Clone)]
 pub struct Browser {
@@ -18,9 +14,10 @@ pub struct Browser {
 impl Browser {
     pub fn new(
         profile: &mut Profile,
+        session: &mut BrowserSession,
         parent_window: RawWindowHandle,
         initial_url: &str,
-        rect: utils::Rect,
+        rect: Rect,
     ) -> anyhow::Result<Self> {
         let view = match parent_window {
             RawWindowHandle::AppKit(handle) => handle.ns_view.as_ptr(),
@@ -38,7 +35,7 @@ impl Browser {
 
         let browser = cef::browser_host_create_browser_sync(
             Some(&window_info),
-            Some(&mut profile.client),
+            Some(&mut session.client),
             Some(&initial_url.into()),
             Some(&profile.browser_settings),
             None,

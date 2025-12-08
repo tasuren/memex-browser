@@ -1,6 +1,6 @@
 use cef::{args::Args, *};
 
-use crate::{cef_impl::app::AppService, event_loop::EventLoopHandle};
+use crate::{cef_impl::AppService, event_loop::EventLoopHandle};
 
 /// CEFをセットアップする。最初に呼ばれるべき。
 /// ブラウザプロセスとしての起動であれば、ブラウザのイベントループの操作用ハンドルを返す。

@@ -1,6 +1,6 @@
 use cef::*;
 
-use crate::{cef_impl::life_span_handler::LifeSpanHandlerService, helper::define_cef_service};
+use crate::{cef_impl::LifeSpanHandlerService, helper::define_cef_service};
 
 define_cef_service! {
     #[derive_cef(WrapClient)]

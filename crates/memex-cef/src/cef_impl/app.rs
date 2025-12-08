@@ -1,8 +1,8 @@
 use cef::*;
 
-use crate::cef_impl::browser_process_handler::BrowserProcessHandlerService;
-use crate::event_loop::PumpTx;
-use crate::helper::define_cef_service;
+use crate::{
+    cef_impl::BrowserProcessHandlerService, event_loop::PumpTx, helper::define_cef_service,
+};
 
 define_cef_service! {
     #[derive_cef(cef::WrapApp)]

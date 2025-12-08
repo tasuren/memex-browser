@@ -1,11 +1,9 @@
 use std::rc::Rc;
 
 use anyhow::Context;
-use cef::{BrowserSettings, Client, RequestContext};
+use cef::{BrowserSettings, RequestContext};
 
-use crate::cef_impl::{
-    client::ClientService, request_context_handler::RequestContextHandlerService,
-};
+use crate::cef_impl::RequestContextHandlerService;
 
 pub type SharedBrowserSettings = Rc<BrowserSettings>;
 
@@ -13,7 +11,6 @@ pub type SharedBrowserSettings = Rc<BrowserSettings>;
 pub struct Profile {
     pub browser_settings: SharedBrowserSettings,
     pub request_context: RequestContext,
-    pub client: Client,
 }
 
 impl Profile {
@@ -32,7 +29,6 @@ impl Profile {
         Ok(Self {
             browser_settings: Rc::new(BrowserSettings::default()),
             request_context,
-            client: ClientService::create(),
         })
     }
 }
