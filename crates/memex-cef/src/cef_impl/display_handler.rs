@@ -1,22 +1,20 @@
-use std::rc::Rc;
-
 use cef::*;
 
-use crate::{BrowserEventHandler, define_cef_service};
+use crate::{BrowserContext, define_cef_service};
 
 define_cef_service! {
     #[derive_cef(WrapDisplayHandler)]
     pub struct DisplayHandlerService {
         sys: *mut cef::rc::RcImpl<sys::cef_display_handler_t, Self>,
-        event_handler: Rc<dyn BrowserEventHandler>,
+        context: BrowserContext,
     }
 }
 
 impl DisplayHandlerService {
-    pub fn create(event_handler: Rc<dyn BrowserEventHandler>) -> DisplayHandler {
+    pub fn create(context: BrowserContext) -> DisplayHandler {
         DisplayHandler::new(Self {
             sys: Default::default(),
-            event_handler,
+            context,
         })
     }
 }
@@ -28,7 +26,9 @@ impl ImplDisplayHandler for DisplayHandlerService {
 
     fn on_title_change(&self, _browser: Option<&mut Browser>, title: Option<&CefString>) {
         if let Some(title) = title {
-            self.event_handler.on_title_change(title.to_string());
+            self.context
+                .event_handler()
+                .on_title_change(title.to_string());
         }
     }
 }

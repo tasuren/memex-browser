@@ -1,30 +1,34 @@
-use std::marker::PhantomData;
+pub use marker::*;
 
-use cef::{ThreadId, sys::cef_thread_id_t};
+mod marker {
+    use std::marker::PhantomData;
 
-#[inline]
-pub fn tid_ui() -> ThreadId {
-    ThreadId::from(cef_thread_id_t::TID_UI)
-}
+    use cef::{ThreadId, sys::cef_thread_id_t};
 
-#[derive(Copy, Clone)]
-pub struct UIThreadMarker {
-    _priv: PhantomData<*mut ()>,
-}
-
-impl UIThreadMarker {
-    pub fn new() -> Option<Self> {
-        if cef::currently_on(tid_ui()) == 1 {
-            Some(Self { _priv: PhantomData })
-        } else {
-            None
-        }
+    #[inline]
+    pub fn tid_ui() -> ThreadId {
+        ThreadId::from(cef_thread_id_t::TID_UI)
     }
 
-    /// # Safety
-    /// You must ensure that the current thread is UI thread.
-    pub unsafe fn new_unchecked() -> Self {
-        Self { _priv: PhantomData }
+    #[derive(Copy, Clone)]
+    pub struct UIThreadMarker {
+        _priv: PhantomData<*mut ()>,
+    }
+
+    impl UIThreadMarker {
+        pub fn new() -> Option<Self> {
+            if cef::currently_on(tid_ui()) == 1 {
+                Some(Self { _priv: PhantomData })
+            } else {
+                None
+            }
+        }
+
+        /// # Safety
+        /// You must ensure that the current thread is UI thread.
+        pub unsafe fn new_unchecked() -> Self {
+            Self { _priv: PhantomData }
+        }
     }
 }
 

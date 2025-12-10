@@ -1,20 +1,21 @@
 use std::ffi::c_void;
 
 use anyhow::Context;
-use cef::{CefStringUtf16, ImplBrowser, ImplBrowserHost, ImplFrame};
+use cef::{CefStringUtf16, Client, ImplBrowser, ImplBrowserHost, ImplFrame};
 use raw_window_handle::RawWindowHandle;
 
-use crate::{BrowserSession, Rect, UIThreadMarker, profile::Profile};
+use crate::{BrowserContext, Rect, UIThreadMarker, cef_impl::ClientService, profile::Profile};
 
 #[derive(Clone)]
 pub struct Browser {
     sys: cef::Browser,
+    _client: Client,
 }
 
 impl Browser {
     pub fn new(
         profile: &mut Profile,
-        session: &mut BrowserSession,
+        context: BrowserContext,
         parent_window: RawWindowHandle,
         initial_url: &str,
         rect: Rect,
@@ -32,10 +33,11 @@ impl Browser {
             bounds: rect.into(),
             ..Default::default()
         };
+        let mut client = ClientService::create(context);
 
         let browser = cef::browser_host_create_browser_sync(
             Some(&window_info),
-            Some(&mut session.client),
+            Some(&mut client),
             Some(&initial_url.into()),
             Some(&profile.browser_settings),
             None,
@@ -50,6 +52,7 @@ impl Browser {
 
         Ok(Self {
             sys: browser.context("ブラウザの作成に失敗しました。")?,
+            _client: client,
         })
     }
 
