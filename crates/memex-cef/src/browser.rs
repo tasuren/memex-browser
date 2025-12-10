@@ -7,12 +7,12 @@ use raw_window_handle::RawWindowHandle;
 use crate::{BrowserContext, Rect, UIThreadMarker, cef_impl::ClientService, profile::Profile};
 
 #[derive(Clone)]
-pub struct Browser {
-    sys: cef::Browser,
+pub struct WebView {
+    browser: cef::Browser,
     _client: Client,
 }
 
-impl Browser {
+impl WebView {
     pub fn new(
         profile: &mut Profile,
         context: BrowserContext,
@@ -51,7 +51,7 @@ impl Browser {
         //     .context("Failed to retrieve browser from CEF.")?;
 
         Ok(Self {
-            sys: browser.context("ブラウザの作成に失敗しました。")?,
+            browser: browser.context("ブラウザの作成に失敗しました。")?,
             _client: client,
         })
     }
@@ -63,7 +63,7 @@ impl Browser {
     pub fn view_handle(&self, utm: UIThreadMarker) -> Option<*mut c_void> {
         let _ = utm;
 
-        self.sys
+        self.browser
             .host()
             .map(|browser_host| browser_host.window_handle())
     }
@@ -71,7 +71,7 @@ impl Browser {
     pub fn current_url(&self) -> String {
         CefStringUtf16::from(
             &self
-                .sys
+                .browser
                 .main_frame()
                 .expect("Failed to get main frame.")
                 .url(),
@@ -81,37 +81,37 @@ impl Browser {
 
     pub fn go_back(&self) {
         log::debug!("go_back");
-        self.sys.go_back();
+        self.browser.go_back();
     }
 
     pub fn go_forward(&self) {
         log::debug!("go_forward");
-        self.sys.go_forward();
+        self.browser.go_forward();
     }
 
     pub fn can_go_back(&self) -> bool {
-        self.sys.can_go_back() == 1
+        self.browser.can_go_back() == 1
     }
 
     pub fn can_go_forward(&self) -> bool {
-        self.sys.can_go_forward() == 1
+        self.browser.can_go_forward() == 1
     }
 
     pub fn reload(&self) {
         log::debug!("reload");
-        self.sys.reload();
+        self.browser.reload();
     }
 
     pub fn hard_reload(&self) {
         log::debug!("hard reload");
-        self.sys.reload_ignore_cache();
+        self.browser.reload_ignore_cache();
     }
 
     pub fn close(&self, utm: UIThreadMarker) -> anyhow::Result<()> {
         log::debug!("close");
         let _ = utm;
 
-        self.sys
+        self.browser
             .host()
             .context("The browser host is not available yet.")?
             .close_browser(0);
