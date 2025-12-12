@@ -1,11 +1,11 @@
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct WindowSize {
     pub width: i32,
     pub height: i32,
 }
 
-#[derive(Clone)]
-pub struct Rect {
+#[derive(Clone, Copy)]
+pub struct WebViewBounds {
     pub x: i32,
     pub y: i32,
     pub width: i32,
@@ -13,8 +13,8 @@ pub struct Rect {
     pub window_size: WindowSize,
 }
 
-impl From<Rect> for cef::Rect {
-    fn from(value: Rect) -> Self {
+impl From<WebViewBounds> for cef::Rect {
+    fn from(value: WebViewBounds) -> Self {
         Self {
             x: value.x,
             y: value.window_size.height - (value.height + value.y),
@@ -23,4 +23,3 @@ impl From<Rect> for cef::Rect {
         }
     }
 }
-

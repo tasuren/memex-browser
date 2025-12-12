@@ -4,7 +4,7 @@ use anyhow::Context;
 use cef::{CefStringUtf16, Client, ImplBrowser, ImplBrowserHost, ImplFrame};
 use raw_window_handle::RawWindowHandle;
 
-use crate::{WebViewContext, Rect, UIThreadMarker, cef_impl::ClientService, profile::Profile};
+use crate::{WebViewContext, WebViewBounds, UIThreadMarker, cef_impl::ClientService, profile::Profile};
 
 #[derive(Clone)]
 pub struct WebView {
@@ -18,7 +18,7 @@ impl WebView {
         context: WebViewContext,
         parent_window: RawWindowHandle,
         initial_url: &str,
-        rect: Rect,
+        rect: WebViewBounds,
     ) -> anyhow::Result<Self> {
         let view = match parent_window {
             RawWindowHandle::AppKit(handle) => handle.ns_view.as_ptr(),
@@ -56,7 +56,7 @@ impl WebView {
         })
     }
 
-    pub fn on_resize(&self, _rect: Rect) {
+    pub fn resize(&self, _rect: WebViewBounds) {
         log::info!("TODO: on_resize");
     }
 
