@@ -1,3 +1,6 @@
+use std::path::Path;
+
+use anyhow::Context;
 use cef::{args::Args, *};
 
 use crate::{cef_impl::AppService, event_loop::EventLoopHandle};
@@ -5,7 +8,17 @@ use crate::{cef_impl::AppService, event_loop::EventLoopHandle};
 /// CEFをセットアップする。最初に呼ばれるべき。
 /// ブラウザプロセスとしての起動であれば、ブラウザのイベントループの操作用ハンドルを返す。
 /// そうでなければ`None`を返す。`None`の場合、それ以上やることはないので終了すべき。
-pub fn boot() -> anyhow::Result<Option<EventLoopHandle>> {
+pub fn boot(
+    root_cache_path: &Path,
+    cache_path: &Path,
+    user_agent: &str,
+    locale: &str,
+) -> anyhow::Result<Option<EventLoopHandle>> {
+    anyhow::ensure!(
+        cache_path == root_cache_path || cache_path.parent() == Some(root_cache_path),
+        "`cache_path`は、`root_cache_path`と同じまたはこれを親に持つ必要があります。"
+    );
+
     #[cfg(target_os = "macos")]
     let _loader = {
         let loader = library_loader::LibraryLoader::new(&std::env::current_exe().unwrap(), false);
@@ -43,6 +56,17 @@ pub fn boot() -> anyhow::Result<Option<EventLoopHandle>> {
 
     // TODO: 設定をプロファイル毎に分けるべきなのかを確認する。
     let settings = Settings {
+        external_message_pump: true.into(),
+        root_cache_path: root_cache_path
+            .to_str()
+            .context("`root_cache_path`の文字列化に失敗")?
+            .into(),
+        cache_path: cache_path
+            .to_str()
+            .context("`cache_path`の文字列化に失敗")?
+            .into(),
+        user_agent: user_agent.into(),
+        locale: locale.into(),
         ..Default::default()
     };
     assert_eq!(
