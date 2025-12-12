@@ -11,3 +11,4 @@ __pycache__
 # Project specific
 .dev
 !.dev/app_data/.gitkeep
+.env
