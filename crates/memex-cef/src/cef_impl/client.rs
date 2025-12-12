@@ -1,7 +1,7 @@
 use cef::*;
 
 use crate::{
-    BrowserContext,
+    WebViewContext,
     cef_impl::{DisplayHandlerService, LifeSpanHandlerService},
     helper::define_cef_service,
 };
@@ -10,14 +10,14 @@ define_cef_service! {
     #[derive_cef(WrapClient)]
     pub struct ClientService {
         sys: *mut cef::rc::RcImpl<sys::cef_client_t, Self>,
-        context: BrowserContext,
+        context: WebViewContext,
         life_span_handler: LifeSpanHandler,
         display_handler: DisplayHandler,
     }
 }
 
 impl ClientService {
-    pub fn create(context: BrowserContext) -> Client {
+    pub fn create(context: WebViewContext) -> Client {
         Client::new(Self {
             sys: Default::default(),
             context: context.clone(),

@@ -1,17 +1,17 @@
 use cef::*;
 
-use crate::{BrowserContext, define_cef_service};
+use crate::{WebViewContext, define_cef_service};
 
 define_cef_service! {
     #[derive_cef(WrapDisplayHandler)]
     pub struct DisplayHandlerService {
         sys: *mut cef::rc::RcImpl<sys::cef_display_handler_t, Self>,
-        context: BrowserContext,
+        context: WebViewContext,
     }
 }
 
 impl DisplayHandlerService {
-    pub fn create(context: BrowserContext) -> DisplayHandler {
+    pub fn create(context: WebViewContext) -> DisplayHandler {
         DisplayHandler::new(Self {
             sys: Default::default(),
             context,

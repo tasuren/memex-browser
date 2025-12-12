@@ -4,7 +4,7 @@ use anyhow::Context;
 use cef::{CefStringUtf16, Client, ImplBrowser, ImplBrowserHost, ImplFrame};
 use raw_window_handle::RawWindowHandle;
 
-use crate::{BrowserContext, Rect, UIThreadMarker, cef_impl::ClientService, profile::Profile};
+use crate::{WebViewContext, Rect, UIThreadMarker, cef_impl::ClientService, profile::Profile};
 
 #[derive(Clone)]
 pub struct WebView {
@@ -15,7 +15,7 @@ pub struct WebView {
 impl WebView {
     pub fn new(
         profile: &mut Profile,
-        context: BrowserContext,
+        context: WebViewContext,
         parent_window: RawWindowHandle,
         initial_url: &str,
         rect: Rect,
