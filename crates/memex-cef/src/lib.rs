@@ -1,5 +1,5 @@
 pub use bootstrap::*;
-pub use browser::*;
+pub use webview::*;
 pub use browser_context::*;
 pub use cef_context::*;
 pub use event_handler::*;
@@ -9,7 +9,7 @@ pub use profile::*;
 pub use rect::*;
 
 mod bootstrap;
-mod browser;
+mod webview;
 mod browser_context;
 mod cef_context;
 mod cef_impl;

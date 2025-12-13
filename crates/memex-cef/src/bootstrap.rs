@@ -11,7 +11,7 @@ use crate::{cef_impl::AppService, event_loop::EventLoopHandle};
 pub fn boot(
     root_cache_path: &Path,
     cache_path: &Path,
-    user_agent: &str,
+    product_name: &str,
     locale: &str,
 ) -> anyhow::Result<Option<EventLoopHandle>> {
     anyhow::ensure!(
@@ -65,7 +65,7 @@ pub fn boot(
             .to_str()
             .context("`cache_path`の文字列化に失敗")?
             .into(),
-        user_agent: user_agent.into(),
+        user_agent_product: product_name.into(),
         locale: locale.into(),
         ..Default::default()
     };

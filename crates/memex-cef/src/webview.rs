@@ -4,7 +4,9 @@ use anyhow::Context;
 use cef::{CefStringUtf16, Client, ImplBrowser, ImplBrowserHost, ImplFrame};
 use raw_window_handle::RawWindowHandle;
 
-use crate::{WebViewContext, WebViewBounds, UIThreadMarker, cef_impl::ClientService, profile::Profile};
+use crate::{
+    UIThreadMarker, WebViewBounds, WebViewContext, cef_impl::ClientService, profile::Profile,
+};
 
 #[derive(Clone)]
 pub struct WebView {
@@ -77,6 +79,15 @@ impl WebView {
                 .url(),
         )
         .to_string()
+    }
+
+    pub fn navigate(&self, url: &str) -> anyhow::Result<()> {
+        let frame = self
+            .browser
+            .main_frame()
+            .context("メインフレームが未設定")?;
+        frame.load_url(Some(&url.into()));
+        Ok(())
     }
 
     pub fn go_back(&self) {

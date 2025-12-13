@@ -1,0 +1,17 @@
+[package]
+name = "memex-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+memex-cef = { path = "../memex-cef" }
+futures-lite.workspace = true
+async-fs.workspace = true
+uuid = { workspace = true, features = ["v7"] }
+sqlx = { workspace = true, features = ["sqlite", "uuid"] }
+dirs.workspace = true
+anyhow.workspace = true
+raw-window-handle.workspace = true
+
+[profile.dev.package.sqlx-macros]
+opt-level = 3

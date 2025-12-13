@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/memex-cef", "crates/memex-cef-helper","crates/memex-app", "crates/memex-backend"]
+members = ["crates/memex-cef", "crates/memex-cef-helper","crates/memex-app", "crates/memex-backend", "crates/memex-core"]
 
 [workspace.dependencies]
 memex-cef.path = "crates/memex-cef"
@@ -12,7 +12,7 @@ log = "0.4.28"
 env_logger = "0.11.8"
 raw-window-handle = "0.6.2"
 anyhow = "1.0"
-uuid = "1.18.1"
+uuid = "1.19.0"
 serde = "1.0"
 serde_json = "1.0"
 futures = "0.3.31"
@@ -24,3 +24,4 @@ rust-embed = "8.8.0"
 gpui = "0.2.2"
 gpui-component = "0.3.1"
 dirs = "6.0.0"
+sqlx = "0.8.6"
